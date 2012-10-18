@@ -81,7 +81,7 @@ if SERVER then
 
 	function meta:SetHealth( amount )
 		self:SetNWInt("Health", math.Clamp(amount, 0, self:GetMaxHealth()))
-		if (self.SetHealthOld) then return self:SetHealthOld(amount) end
+		--if (self.SetHealthOld) then return self:SetHealthOld(amount) end
 	end
 end
 
@@ -92,7 +92,7 @@ end
 if (!meta.SetMaxHealthOld) then meta.SetMaxHealthOld = meta.SetMaxHealth end
 
 function meta:SetMaxHealth( amount )
-	if (self.SetMaxHealthOld) then self:SetMaxHealthOld(amount) end
+	--if (self.SetMaxHealthOld) then self:SetMaxHealthOld(amount) end
 	return self:GetNWInt("MaxHealth", amount)
 end
 

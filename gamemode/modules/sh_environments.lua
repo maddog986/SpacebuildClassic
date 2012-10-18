@@ -6,6 +6,7 @@
 		- add a Fahrenheit or Celcius option
 		- reduce color blooms when planets are terra formed
 		- on terraformed planets disable entities: env_smokestack, func_dustcloud
+		- add planet ambient sounds
 ]]
 
 local ENVIRONMENTS = {}

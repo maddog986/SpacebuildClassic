@@ -49,7 +49,7 @@ EVENTS:AddEvent("gravity", function( self, planet )
 	self.NextUpdate = CurTime() + SB:ConfigFloat("sb_update_gravity", 0.1)
 
 	--planet.Watch contains entities that are out of the planet and within its gravity pull (between radius and radius * 1.5)
-	for i, ent in pairs( planet.Watch ) do
+	for i, ent in pairs( planet.Watch or {} ) do
 		if !IsValid(ent) then continue end
 
 		local phys = ent:GetPhysicsObject()
