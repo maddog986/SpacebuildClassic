@@ -1,0 +1,1 @@
+SB:RegisterFunc( "GetFallDamage", function( ply, flFallSpeed )	local gravity = server_settings.Int( "sv_gravity", 600 )	return (flFallSpeed-580) * GetConVarNumber( "mp_falldamage" ) * (gravity)/600end )
