@@ -74,11 +74,11 @@ function ASTEROIDS:SpawnAsteroid( model, pos )
 end
 
 function ASTEROIDS:RemoveAsteroids()
-	for _, ent in pairs( ents.FindByClass("raw_asteroid")) do
+	for _, ent in pairs( ents.FindByClass("raw_asteroid") ) do
 		ent:Remove()
 	end
 
-	for _, ent in pairs( ents.FindByClass("raw_resource")) do
+	for _, ent in pairs( ents.FindByClass("raw_resource") ) do
 		ent:Remove()
 	end
 end

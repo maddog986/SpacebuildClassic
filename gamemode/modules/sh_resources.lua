@@ -165,7 +165,7 @@ function RS:SetupTool( toolInfo )
 
 		ent:SetPos( tr.HitPos )
 		ent:SetAngles( ang )
-		ent:SetPlayer( ply )
+		ent:SetOwner( ply )
 		ent:SetPos(pos)
 		ent:Spawn()
 		ent:Activate()

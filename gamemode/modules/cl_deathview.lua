@@ -3,6 +3,9 @@
 	Author: MadDog (steam id md-maddog)
 ]]
 local DEATHVIEW = {}
+DEATHVIEW.Name = "Deathview"
+DEATHVIEW.Author = "MadDog"
+DEATHVIEW.Version = 1
 
 function DEATHVIEW:CalcView(ply, pos, angles, fov)
 	local ragdoll = ply:GetRagdollEntity()

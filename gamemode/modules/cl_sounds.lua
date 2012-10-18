@@ -8,6 +8,9 @@
 
 local SOUNDS = {}
 
+SOUNDS.Name = "Sounds"
+SOUNDS.Author = "MadDog"
+SOUNDS.Version = 1
 SOUNDS.Alive = true
 SOUNDS.Suit = 100
 SOUNDS.NextWarningSound = 0

@@ -78,17 +78,18 @@ end
 
 function SB:Register( class )
 	class.Name = class.Name or "Unknown-" .. SysTime()
-	SB:Remove( class.Name )
+	self:print("-- Register Class: ", class.Name)
 	SB.classes[class.Name] = class
-	self:print("Registered Class: ", class.Name)
 	--class.BaseClass = SB
 end
 
 function SB:Remove( name )
+	self:print("-- Remove Class: ", name)
 	SB.stored[name] = nil
 end
 
 function SB:RemoveClass( class )
+	self:print("-- Remove Class: ", class.Name)
 	if (class.Name) then SB.classes[class.Name] = nil end
 end
 

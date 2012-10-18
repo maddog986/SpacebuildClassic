@@ -23,6 +23,17 @@ concommand.Add( "gmod_admin_cleanup", function( ply, cmd, args )
 	print("Cannot use cleanup in this gamemode!")
 end)
 
+game.ConsoleCommand("sbox_persist 0") --messes up everything
+
+if (!game.CleanUpMapOld) then game.CleanUpMapOld = game.CleanUpMap end
+
+function game.CleanUpMap()
+	game.CleanUpMap(false, {"sb_planets","base_sb_environment"})
+
+end
+
+
+
 local meta = FindMetaTable("Player")
 
 function meta:EasyMessage( message, int )

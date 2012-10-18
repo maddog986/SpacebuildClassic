@@ -24,7 +24,7 @@ RS:AddDevice({
 
 			-- Create a thumper
 			if (!self.thumper) then
-				self:SetColor(0,0,0,1)
+				self:SetColor( Color(0,0,0,1) )
 
 				self.thumper = ents.Create( "prop_thumper" )
 				self.thumper:SetPos( self:GetPos() )

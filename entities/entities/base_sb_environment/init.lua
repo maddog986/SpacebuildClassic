@@ -94,7 +94,7 @@ end
 
 function ENT:OnTakeDamage() end --doesnt take damage
 
-function ENT:OnRemove() end
+function ENT:OnRemove() MsgN("SOMETHING REMOVED PLANET") debug.Trace() end
 
 function ENT:Think()
 	local entities = ents.FindInSphere(self:GetPos(), self:GetGravityRadius()) --TODO: Add FindInBox for cube environments

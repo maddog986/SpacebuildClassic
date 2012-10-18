@@ -99,6 +99,7 @@ end)
 EVENTS:AddEvent("unstable", function( self, planet )
 	self.NextUpdate = CurTime() + SB:ConfigFloat("sb_update_unstable", 30)
 
+	if (!planet.environment) then return end
 	if (!planet.environment.unstable or planet.environment.unstable == 0) then return end --only want unstable planets
 
 	--get position of planet
@@ -118,6 +119,8 @@ EVENTS:AddEvent("meteors", function( self, planet )
 	local time = SB:ConfigFloat("sb_update_meteors", 15)
 
 	self.NextUpdate = CurTime() + time
+
+	if (!planet.environment) then return end
 
 	if (!planet.environment.unstable or planet.environment.unstable == 0) then return end --only want unstable planets
 	if (table.Count(planet.Entities) == 0 and table.Count(planet.Watch) == 0) then return end --wait tell someone is on it

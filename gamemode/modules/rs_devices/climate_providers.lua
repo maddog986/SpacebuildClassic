@@ -33,12 +33,11 @@ RS:AddDevice({
 	}
 })
 
+--TODO: Finish
 function ClimateThink( self )
 	self.radius = 1024
 
-	local atmosphere  = GetEnvironmentNormal( ent, "atmosphere", 1 )
-
-	MsgN("atmosphere: ", atmosphere)
+	local atmosphere  = GetEnvironmentNormal( self, "atmosphere", 1 )
 end
 
 --add plants
@@ -197,7 +196,8 @@ RS:AddDevice({
 
 
 function Teraform( self )
---self:GetDistanceAmount()
+	if !IsValid(self) then return end
+
 	if (!self.Environments) then return 10000 end
 
 	for _idx, ent in pairs(self.Environments.Ents or {}) do
@@ -214,6 +214,8 @@ end
 
 
 function DoPlant( self )
+	if !IsValid(self) then return end
+
 	--kill life
 	if (math.random(1, 10) < 6) then
 		RS.SetHealthInc(self, -1)
@@ -225,6 +227,8 @@ end
 
 
 function GetEnvironmentNormal( ent, name, target )
+	if !IsValid(ent) then return end
+
 	local values, valuesIn = {}, {}
 
 	--dont provide gravity in space... duh
@@ -254,6 +258,8 @@ function GetEnvironmentNormal( ent, name, target )
 end
 
 function GetEnvironmentAvg( ent, name, target )
+	if !IsValid(ent) then return end
+
 	local values, valuesIn = {}, {}
 
 	--dont provide gravity in space... duh

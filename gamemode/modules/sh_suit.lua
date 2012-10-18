@@ -28,6 +28,9 @@ if SERVER then
 	function SUIT:Think()
 		self.NextThink = CurTime() + 0.5
 
+		if (!SB:GetClass("Environments")) then return end
+		--if true then return end
+
 		for _, ply in pairs( player.GetAll() ) do
 			if (!IsValid(ply) or !ply:Alive()) then continue end
 

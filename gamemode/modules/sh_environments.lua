@@ -231,10 +231,10 @@ function ENVIRONMENTS:IsSpawnPlanet( planet )
 end
 
 if SERVER then
-	ENVIRONMENTS.Entities = ENVIRONMENTS.Entities or {}
-	ENVIRONMENTS.Planets = ENVIRONMENTS.Planets or {}
-	ENVIRONMENTS.Stars = ENVIRONMENTS.Stars or {}
-	ENVIRONMENTS.Spacebuild = ENVIRONMENTS.Spacebuild or false
+	ENVIRONMENTS.Entities = {}
+	ENVIRONMENTS.Planets = {}
+	ENVIRONMENTS.Stars = {}
+	ENVIRONMENTS.Spacebuild = false
 
 	ENVIRONMENTS.default_environment =  {gravity = 1, oxygen = 100, atmosphere = 1, temperature = 288, lowtemperature = 288, hightemperature = 288}
 	ENVIRONMENTS.space_environment =  {gravity = 0, oxygen = 0, atmosphere = 0, temperature = 0, lowtemperature = 0, hightemperature = 0}
@@ -386,21 +386,22 @@ if SERVER then
 	end
 
 	function ENVIRONMENTS:AddPlanet( data )
-		local p = ents.Create("sb_planet")
+		local ent = ents.Create("sb_planet")
 
-		table.Merge( p:GetTable(), data )
+		table.Merge( ent:GetTable(), data )
+		ent:SetEnvironment( data )
 
-		p:SetEnvironment(data)
+		ent:SetPos( data.position )
+		ent:Spawn()
+		ent:Activate()
+		ent:SetName( data.name )
 
-		p:SetPos( data.position )
-		p:Spawn()
-		p:Activate()
-		p:SetName( data.name )
+		MsgN("Add Planet ", ent)
 
 		if (data.star) then
-			table.insert( self.Stars, p ) --add to stars
+			table.insert( self.Stars, ent ) --add to stars
 		else
-			table.insert( self.Planets, p ) --add to planets
+			table.insert( self.Planets, ent ) --add to planets
 		end
 	end
 
@@ -410,10 +411,17 @@ if SERVER then
 			if (!ents.CreateOld) then ents.CreateOld = ents.Create end
 			function ents.Create( ... )
 				local ent = ents.CreateOld( ... )
-				if ent:GetClass() ~= "sb_planet" then OnEntitySpawn( ent ) end
+				if (ent and ent:GetClass() ~= "sb_planet") then OnEntitySpawn( ent ) end
 				return ent
 			end
 		end)
+
+		ENVIRONMENTS.Planets = {}
+		ENVIRONMENTS.Stars = {}
+
+		for _, ent in pairs(ents.FindByClass("sb_planet")) do
+			ent:Remove()
+		end
 
 		SB:print("----------------------------------------")
 		SB:print("-- Looking for environments:")
@@ -468,7 +476,7 @@ if SERVER then
 
 				Colors[color.id] = color
 
-				SB:print("-- Color Found")
+				SB:print("-- Color Found " .. color.id)
 
 			elseif Type == "planet_bloom" then
 				local bloom = {}
@@ -483,7 +491,7 @@ if SERVER then
 
 				Blooms[bloom.id] = bloom
 
-				SB:print("-- Bloom Found")
+				SB:print("-- Bloom Found" .. bloom.id)
 			end
 		end
 
@@ -573,16 +581,6 @@ if SERVER then
 			end
 		end
 
-		--remove gooniverse space station because it sucks
-		if (string.find(string.lower(game.GetMap()), "sb_gooniverse")) then
-			timer.Simple(1, function()
-				local space_station = ents.FindInBox(Vector(9571, -3135, 10207), Vector(10818, -1321, 10933))
-				for k, ent in pairs(space_station) do
-					ent:Remove()
-				end
-			end)
-		end
-
 		if (table.Count(self.Stars) == 0) then
 			local star = {}
 			star.radius = 1
@@ -599,15 +597,19 @@ if SERVER then
 		self.Spacebuild = #ents.FindByClass("sb_planet") > 0
 
 		SB:print("----------------------------------------")
+
+		if (!self.Spacebuild) then
+			SB:RemoveClass( self )
+
+			SB:print("----------------------------------------")
+			SB:print("ERROR: Not a Spacebuild map. Removing Environments.")
+			SB:print("----------------------------------------")
+		end
 	end
 
-	concommand.Add("sb_environments_reload", function()
-		for _, ent in pairs(ents.FindByClass("sb_planet")) do
-			ent:Remove()
-		end
+	ENVIRONMENTS.OnReloaded = ENVIRONMENTS.InitPostEntity
 
-		ENVIRONMENTS.Planets = {}
-		ENVIRONMENTS.Stars = {}
+	concommand.Add("sb_environments_reload", function()
 		ENVIRONMENTS:InitPostEntity()
 	end)
 
