@@ -1,3 +1,11 @@
+--[[
+
+	Author: MadDog (steam id md-maddog)
+
+	TODO:
+		- Cleanup/finish/improve
+]]
+
 local CHARACTERS = {}
 CHARACTERS.Name = "Characters"
 CHARACTERS.Author = "MadDog"

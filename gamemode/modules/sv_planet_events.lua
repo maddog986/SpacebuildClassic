@@ -1,4 +1,13 @@
+--[[
+
+	Author: MadDog (steam id md-maddog)
+
+	TODO:
+		- Add more events to planets
+		- Code an admin tool to allow admins to change events per planet
+]]
 local EVENTS = {}
+
 EVENTS.events = {}
 
 function EVENTS:AddEvent( name, func )
@@ -33,7 +42,9 @@ SB:Register( EVENTS )
 
 
 
-
+--[[
+	Change gravity for entities on planet
+]]
 EVENTS:AddEvent("gravity", function( self, planet )
 	self.NextUpdate = CurTime() + SB:ConfigFloat("sb_update_gravity", 0.1)
 
@@ -65,6 +76,8 @@ EVENTS:AddEvent("gravity", function( self, planet )
 	end
 end)
 
+--[[
+	TODO: Update this once the Terra Forming stuff is complete. Add Trees (maybe even planets) to newly Terra Formed planets
 
 EVENTS:AddEvent("trees", function( self, planet )
 	self.NextUpdate = CurTime() + SB:ConfigFloat("sb_update_trees", 1)
@@ -78,6 +91,7 @@ EVENTS:AddEvent("trees", function( self, planet )
 
 	planet:SetNWBool("Raining", (planet.Trees > 40) ) --rain forest always rain :)
 end)
+]]
 
 --[[
 	UNSTABLE PLANETS
@@ -106,7 +120,7 @@ EVENTS:AddEvent("meteors", function( self, planet )
 	self.NextUpdate = CurTime() + time
 
 	if (!planet.environment.unstable or planet.environment.unstable == 0) then return end --only want unstable planets
-	if (table.Count(planet.Entities) == 0 and table.Count(planet.Watch) == 0) then MsgN("no players") return end --wait tell someone is on it
+	if (table.Count(planet.Entities) == 0 and table.Count(planet.Watch) == 0) then return end --wait tell someone is on it
 
 	--get position of planet
 	local Pos = planet:GetPos()

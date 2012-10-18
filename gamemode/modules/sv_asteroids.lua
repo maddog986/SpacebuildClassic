@@ -1,3 +1,12 @@
+--[[
+
+	Author: MadDog (steam id md-maddog)
+
+	TODO:
+		- Make the asteroids blow up if they take damage.
+		- At point point recode so the asteroids release smaller rocks instead of balls of resources
+]]
+
 ASTEROIDS = {}
 ASTEROIDS.Name = "Asteroids"
 ASTEROIDS.Author = "MadDog"

@@ -1,3 +1,11 @@
+--[[
+
+	Author: MadDog (steam id md-maddog)
+
+	TODO:
+		- Finished/improve.
+]]
+
 SEEDS = {} --create the roleplay part of this game
 
 SEEDS.Types = {

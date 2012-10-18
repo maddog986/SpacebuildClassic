@@ -1,3 +1,12 @@
+--[[
+
+	Author: MadDog (steam id md-maddog)
+
+	TODO:
+		- Fix the menu in the options tab.
+		- Cleanup
+]]
+
 local soundlevel = CreateClientConVar( "mdsb_soundlevel", "100", true, false )
 local sbhudposition = CreateClientConVar( "mdsb_sbhudposition", "Right Top", true, false )
 local sbsuitposition = CreateClientConVar( "mdsb_sbsuitposition", "Left Top", true, false )

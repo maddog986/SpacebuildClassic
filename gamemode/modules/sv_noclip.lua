@@ -1,3 +1,11 @@
+--[[
+
+	Author: MadDog (steam id md-maddog)
+
+	TODO:
+		- Add server convars to allow admins to always noclip
+		- Maybe add an option to only allow noclip on spawn planets
+]]
 local NOCLIP = {}
 
 function NOCLIP:PlayerSpawn(ply)

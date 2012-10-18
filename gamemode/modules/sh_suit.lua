@@ -1,10 +1,16 @@
+--[[
+
+	Author: MadDog (steam id md-maddog)
+
+	TODO:
+		- "Gravity Boots". Gives the planet some gravity in space when above props.
+]]
 local SUIT = {}
 SUIT.Name = "Suit"
 SUIT.Author = "MadDog"
 SUIT.Version = 1
 
 if SERVER then
-
 	function SUIT:EntityTakeDamage( ent, inflictor, attacker, amount, dmginfo )
 		if (!ent:IsPlayer() or !ent:Alive() or !ent:HasSuit()) then return end
 
@@ -104,12 +110,8 @@ if SERVER then
 	function meta:SetMaxSuitArmor( amount )
 		self:SetNWInt("MaxSuitArmor", amount)
 	end
-end
 
-
-
-
-if CLIENT then
+else
 
 	local hidesuit = 0
 	local lastsuit = ""
@@ -131,7 +133,7 @@ if CLIENT then
 
 		local colour = Color(255,255,255,75)-- Only change these
 		local radius = 50                 --
-	     
+
 		local trace = {}
 		trace.start = ply:GetPos() + Vector(0,0,50)
 		trace.endpos = trace.start + Vector(0,0,-300)
@@ -155,7 +157,7 @@ if CLIENT then
 	    tab[ "$pp_colour_mulr" ]        = 0
 	    tab[ "$pp_colour_mulg" ]        = 0
 	    tab[ "$pp_colour_mulb" ]        = 0
-	     
+
 	    DrawColorModify( tab )
 	end
 

@@ -1,3 +1,8 @@
+--[[
+
+	Author: MadDog (steam id md-maddog)
+]]
+
 local _ent = FindMetaTable("Entity")
 
 --this fixes some parent tools

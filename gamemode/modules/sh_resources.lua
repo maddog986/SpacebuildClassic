@@ -1,3 +1,12 @@
+--[[
+
+	Author: MadDog (steam id md-maddog)
+
+	TODO:
+		- Fix duping
+		- Cleanup
+]]
+
 RS = {}
 RS.Name = "Resources"
 RS.Author = "MadDog"

@@ -1,3 +1,8 @@
+--[[
+
+	Author: MadDog (steam id md-maddog)
+]]
+
 local HUD = {}
 HUD.Name = "Hud"
 HUD.Author = "MadDog"

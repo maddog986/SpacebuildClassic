@@ -1,3 +1,7 @@
+--[[
+
+	Author: MadDog (steam id md-maddog)
+]]
 local DEATHVIEW = {}
 
 function DEATHVIEW:CalcView(ply, pos, angles, fov)

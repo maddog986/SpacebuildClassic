@@ -1,3 +1,11 @@
+--[[
+
+	Author: MadDog (steam id md-maddog)
+
+	TODO:
+		-Add more ambient sounds to enhance the gameplay.
+]]
+
 local SOUNDS = {}
 
 SOUNDS.Alive = true
