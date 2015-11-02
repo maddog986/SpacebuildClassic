@@ -5,6 +5,7 @@ RS:AddDevice({
 	name = "Air Tank",
 	desc = "Holds Compressed Air",
 	model = {
+		"models/air_tank.mdl",
 		"models/props_c17/canister_propane01a.mdl",
 		"models/props_c17/canister01a.mdl",
 		"models/props_junk/PropaneCanister001a.mdl",

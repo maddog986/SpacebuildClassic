@@ -8,6 +8,7 @@ RS:AddDevice({
 	startsound = {"k_lab.ambient_powergenerators","ambient/machines/thumper_startup1.wav"},
 	stopsound = "vehicles/APC/apc_shutdown.wav",
 	model = {
+		"models/fusion_reactor.mdl",
 		"models/props_c17/substation_circuitbreaker01a.mdl",
 		"models/combine_dropship_container_static.mdl",
 		"models/Combine_Helicopter/helicopter_bomb01.mdl",
@@ -22,20 +23,12 @@ RS:AddDevice({
 		"models/naquada-reactor.mdl"
 	},
 	resources = {
-		Energy = GENERATE
-	},
-	BaseClass = {
-		Think = function(self)
-			self.BaseClass.Think(self)
-
-			--must be active
-			if (self:IsActive()) then DoFusionThink( self ) end
-
-			self.Entity:NextThink(CurTime() + 1)
-			return true
+		Energy = function( self )
+			return DoFusionThink( self )
 		end
 	}
 })
+
 
 
 
@@ -51,6 +44,7 @@ RS:AddDevice({
 	startsound = "vehicles/v8/v8_start_loop1.wav",
 	stopsound = "vehicles/v8/v8_stop1.wav",
 	model = "models/vehicle/vehicle_engine_block.mdl",
+	requires_name = {"Petrol"},
 	resources = {
 		Energy = GENERATE
 	},
@@ -69,6 +63,7 @@ RS:AddDevice({
 	startsound = "vehicles/Airboat/fan_motor_start1.wav",
 	stopsound = "vehicles/Airboat/fan_motor_shut_off1.wav",
 	model = "models/props_c17/TrapPropeller_Engine.mdl",
+	requires_name = {"Petrol"},
 	resources = {
 		Energy = GENERATE
 	},
@@ -90,6 +85,7 @@ RS:AddDevice({
 		"models/props_mining/diesel_generator.mdl",
 		"models/props_c17/TrapPropeller_Engine.mdl"
 	},
+	requires_name = {"Petrol"},
 	resources = {
 		Energy = GENERATE
 	},
@@ -118,6 +114,7 @@ RS:AddDevice({
 		"models/Spacebuild/medbridge2_large_solar_sail.mdl",
 		"models/Slyfo_2/acc_sci_spaneltanks.mdl"
 	},
+	requires_name = {"Sunlight"},
 	resources = {
 		Energy = function( self )
 			return GENERATE(self) / 10
@@ -142,6 +139,7 @@ RS:AddDevice({
 	name = "Wind Power",
 	desc = "Generates Energy from wind.",
 	model = "models/props_trainstation/pole_448Connection001a.mdl",
+	requires_name = {"Atmosphere"},
 	resources = {
 		Energy = function( self )
 			return GENERATE(self)
@@ -163,31 +161,54 @@ RS:AddDevice({
 
 
 function DoFusionThink( self )
+	if (CurTime() <= (self.lastenergytime or 0)) then return self.lastenergy end
+
+	self.lastenergytime = CurTime() + 1
+
 	local generateAmount = GENERATE( self ) --get base generate amount
 	local consumeAmount = CONSUME( self ) * 0.1 --how much to consume
 	local stored = RS:Stored( self ) --how much resources are stored up
 
 	--big boost from Hydrogen
 	if (stored.Hydrogen && stored.Hydrogen > consumeAmount) then
-		RS:Commit( self, { Hydrogen = -consumeAmount * 5 } )
-
 		generateAmount = generateAmount + consumeAmount * 1.5
 	end
-
+--[[
 	--if no coolant, cause damage
-	if (!stored.Coolant or stored.Coolant < consumeAmount) then
+	if (!stored.Coolant or stored.Coolant < consumeAmount) && self:IsActive() then
 		self:TakeDamage( math.random(5, 15), self, self ) --kill life
 
 		self:MakeSmoke()
 
 		self:EnergySparks( self:GetPos(), math.random(100, 200) )
 
-		self.Entity:EmitSound( "common/warning.wav" )
-	else
-		RS:Commit( self, { Coolant = -consumeAmount } )
+		local ent = self
 
-		generateAmount = generateAmount --give energy boost
+		timer.Simple( math.random(0.01, 0.4), function()
+			ent:EnergySparks( ent:GetPos(), math.random(100, 200) )
+			ent:MakeSmoke()
+		end )
+
+		timer.Simple( math.random(0.45, 0.6), function()
+			ent:EnergySparks( ent:GetPos(), math.random(100, 200) )
+			ent:MakeSmoke()
+		end)
+
+		timer.Simple( math.random(0.65, 0.8), function()
+			ent:EnergySparks( ent:GetPos(), math.random(100, 200) )
+			ent:MakeSmoke()
+		end)
+
+		timer.Simple( math.random(0.85, 0.95), function()
+			ent:EnergySparks( ent:GetPos(), math.random(100, 200) )
+			ent:MakeSmoke()
+		end)
+
+		self:EmitSound( "common/warning.wav" )
 	end
+]]
+	self.lastenergy = generateAmount
+	return generateAmount
 end
 
 function DoSolar( self )
@@ -205,9 +226,9 @@ function DoSolar( self )
 	end
 
 	if self:IsActive() then
-		self.Entity:SetColor( Color(10, 96, 255, 255) ) --light up when on
+		self:SetColor( Color(10, 96, 255, 255) ) --light up when on
 	else
-		self.Entity:SetColor( Color(10, 96, 140, 255) ) --dark when off
+		self:SetColor( Color(10, 96, 140, 255) ) --dark when off
 	end
 end
 

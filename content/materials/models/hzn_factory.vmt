@@ -1,0 +1,5 @@
+"VertexLitGeneric"
+{
+	"$basetexture" "models/hzn_factory"
+	$selfillum 1
+}

@@ -1,42 +1,58 @@
+--[[
+
+	Author: MadDog (steam id md-maddog)
+	Contact: http://www.facepunch.com/members/145240-MadDog986
+
+]]
+
 include("shared.lua")
 
-for k, v in pairs( file.Find(SB.Folder .. "/gamemode/vgui/*", "GAME") ) do
-	MsgN("--\t\t" .. v .. " loaded.")
-	include("vgui/"..v)
-end
-
---extra files
-for k, v in pairs( file.Find(SB.Folder .. "/gamemode/modules/cl_*", "GAME") ) do
-	MsgN("--\t\t" .. v .. " loaded.")
-	include("modules/"..v)
-end
+GM:Include( "vgui/*" )
+GM:Include( "modules/cl_*" )
+GM:Include( "derma/*" )
 
 
-function SB:SendMessage( msg, t )
-	--[[
-	NOTIFY_GENERIC = 0
-	NOTIFY_ERROR = 1
-	NOTIFY_UNDO	 = 2
-	NOTIFY_HINT	 = 3
-	NOTIFY_CLEANUP = 4
-	]]
+hook.Add( "PopulatePropMenu", "SBMenu", function()
+	local contents = {}
 
-	local sound = ""
+	local function PopulateFolder( path )
+		local files, folders = file.Find( GAMEMODE.Folder .. "/content/" .. path .. "/*.mdl", "GAME" )
 
-	t = tonumber(t)
+		for k, v in pairs( files ) do
+			--MsgN("model: ", path .. "/" .. v)
 
-	if (t == NOTIFY_GENERIC) then
-		sound = "buttons/button17.wav"
-	elseif (t == NOTIFY_ERROR) then
-		sound = "buttons/button10.wav"
-	elseif (t == NOTIFY_UNDO) then
-		sound = "buttons/bell1.wav"
-	elseif (t == NOTIFY_HINT) then
-		sound = "ambient/machines/slicer"..math.random(1, 4)..".wav"
-	else
-		sound = "ambient/water/drip"..math.random(1, 4)..".wav"
+			table.insert( contents, {
+				type = "model",
+				model = path .. "/" .. v
+			})
+		end
+
+		local files, folders = file.Find( GAMEMODE.Folder .. "/content/" .. path .. "/*", "GAME" )
+
+		for k, v in pairs( folders ) do
+			table.insert( contents, {
+				type = "header",
+				text = v
+			} )
+
+			PopulateFolder( path .. "/" .. v )
+		end
 	end
 
-	GAMEMODE:AddNotify( msg, math.Clamp(t, 0, 4), 10 )
-	surface.PlaySound(sound)
-end
+	-- Props
+	table.insert( contents, {
+		type = "header",
+		text = "Props"
+	} )
+
+	for k, filepath in pairs( file.Find(GAMEMODE.Folder .. "/content/models/devices/*.mdl", "GAME") ) do
+		table.insert( contents, {
+			type = "model",
+			model = "models/devices/" .. filepath
+		})
+	end
+
+	PopulateFolder("models/smallbridge")
+
+	spawnmenu.AddPropCategory( "SpacebuildProps", "Spacebuild Models", contents, "icon16/page.png")
+end)

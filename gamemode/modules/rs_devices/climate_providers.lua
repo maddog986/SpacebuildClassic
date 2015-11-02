@@ -1,10 +1,9 @@
 --add climate regulators
 RS:AddDevice({
-	tool = {"Climate"},
+	tool = "Climate",
 	category = "Climate Regulators",
 	status = true,
 	name = "Climate Regulator",
-	base = "base_sb_environment",
 	desc = "Provides climate control to make friendly climate.",
 	startsound = "vehicles/APC/apc_start_loop3.wav",
 	stopsound = "vehicles/APC/apc_shutdown.wav",
@@ -13,32 +12,37 @@ RS:AddDevice({
 		"models/props/combine_ball_launcher.mdl",
 		"models/SmallBridge/Life Support/sbclimatereg.mdl"
 	},
-	radius = 1024,
 	requires = {
 		Energy = function(self)
 			return CONSUME(self) / 2
 		end
 	},
 	BaseClass = {
-		Think = function(self)
-			self.BaseClass.Think(self)
-
-			--if (self:IsActive()) then
-			ClimateThink(self)
-			--end
-
-			self:NextThink(CurTime() + 1)
-			return true
-		end
+		Environment = {
+			radius = function(self)
+				return 1024
+			end,
+			oxygen = function( self )
+				return GetEnvironmentNormal( self, "oxygen", 100 )
+			end,
+			gravity = function( self )
+				return GetEnvironmentNormal( self:GetParent(), "gravity", 1.0 )
+			end,
+			lowtemperature = function(self)
+				return GetEnvironmentNormal( self, "lowtemperature", 295.777 )
+			end,
+			temperature = function(self)
+				return GetEnvironmentNormal( self, "temperature", 295.777 )
+			end,
+			hightemperature = function(self)
+				return GetEnvironmentNormal( self, "hightemperature", 295.777 )
+			end,
+			atmosphere = function( self )
+				return GetEnvironmentNormal( self, "atmosphere", 1 )
+			end,
+		}
 	}
 })
-
---TODO: Finish
-function ClimateThink( self )
-	self.radius = 1024
-
-	local atmosphere  = GetEnvironmentNormal( self, "atmosphere", 1 )
-end
 
 --add plants
 RS:AddDevice({
@@ -57,14 +61,11 @@ RS:AddDevice({
 		"models/props/de_inferno/tree_large.mdl"
 	},
 	BaseClass = {
-		Think = function(self)
-			self.BaseClass.Think(self)
-
-			DoPlant( self )
-
-			self.Entity:NextThink(CurTime() + 1)
-			return true
-		end
+		Environment = {
+			radius = RADIUS,
+			gravity = 0.05,
+			oxygen = 5
+		}
 	}
 })
 
@@ -151,7 +152,7 @@ RS:AddDevice({
 				return GetEnvironmentNormal( self, "lowTemperature", 295.777 )
 			end,
 			hightemperature = function(self)
-				return GetEnvironmentNormal( self, "lowTemperature", 295.777 )
+				return GetEnvironmentNormal( self, "highTemperature", 295.777 )
 			end
 		}
 	}
@@ -182,7 +183,7 @@ RS:AddDevice({
 				return GetEnvironmentNormal( self, "lowTemperature", 295.777 )
 			end,
 			highTemperature = function(self)
-				return GetEnvironmentNormal( self, "lowTemperature", 295.777 )
+				return GetEnvironmentNormal( self, "highTemperature", 295.777 )
 			end
 		}
 	}
@@ -232,17 +233,18 @@ function GetEnvironmentNormal( ent, name, target )
 	local values, valuesIn = {}, {}
 
 	--dont provide gravity in space... duh
-	if (name == "gravity" && ent.Environments && !ent.Environments.Planet) then return 0 end
+	--if (name == "gravity" && ent.Environments && !ent.Environments.Planet) then return 0 end
+	if (name == "gravity" && !ent:IsOnPlanet()) then return 0 end
 
 	for _, _environment in pairs(ent:GetEnvironments()) do
-		if _environment == ent then continue; end --dont compare to self
+		if !IsValid(_environment) or _environment == ent or _environment:GetParent() == ent  then continue; end --dont compare to self
 
 		--get environment from temp entity
 		local Environment = _environment:GetEnvironment() --entites use ent.Environment, planets dont
 
 		if (!Environment or !Environment[name]) then continue; end --not what we need
 
-		local val = Environment[name]
+		local val = RS:GetNumber(_environment, Environment[name])
 
 		values[name] = (values[name] or 0) + val
 		valuesIn[name] = (valuesIn[name] or 0) + 1

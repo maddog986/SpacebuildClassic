@@ -1,8 +1,11 @@
 --coolant generator
 RS:AddDevice({
+	tool = {"Generator"},
+	category = "Coolant",
 	name = "Coolant Generater",
 	desc = "Creates coolant.",
 	model = {
+		"models/coolant_compressor.mdl",
 		"models/Gibs/airboat_broken_engine.mdl",
 		"models/Slyfo_2/acc_sci_coolerator.mdl"
 	},
@@ -13,11 +16,9 @@ RS:AddDevice({
 			return GENERATE(self) * 2
 		end
 	},
+	requires_name = {"Energy", "Water"},
 	requires = {
-		Energy = CONSUME--,
-		--Water = CONSUME
+		Energy = CONSUME
 	},
-	tool = {"Generator"},
-	category = "Coolant",
 	status = true
 })

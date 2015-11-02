@@ -1,17 +1,17 @@
 function EFFECT:Init(data)
-	self.entity = data:GetEntity()
-	if(!self.entity:IsValid()) then return end
-	self.mag = math.Clamp(self.entity:BoundingRadius()/8,1,9999999)
+	self = data:GetEntity()
+	if(!self:IsValid()) then return end
+	self.mag = math.Clamp(self:BoundingRadius()/8,1,9999999)
 	self.dur = data:GetScale()+CurTime()
-	self.emitter = ParticleEmitter(self.entity:GetPos())
+	self.emitter = ParticleEmitter(self:GetPos())
 	self.amp = 255/data:GetScale()
 end
 
 function EFFECT:Think()
-	if not self.entity:IsValid() then return false end
+	if not self:IsValid() then return false end
 	local t = CurTime()
-	local vOffset = self.entity:GetPos()
-	local Low, High = self.entity:WorldSpaceAABB()
+	local vOffset = self:GetPos()
+	local Low, High = self:WorldSpaceAABB()
 	for i=1, self.mag do --don't fuck with this or you FPS dies
 		local vPos = Vector(math.random(Low.x,High.x), math.random(Low.y,High.y), math.random(Low.z,High.z))
 		local particle = self.emitter:Add("effects/combinemuzzle2", vPos)
@@ -31,7 +31,7 @@ function EFFECT:Think()
 		end
 	end
 	local tmp2 = math.Clamp(self.amp*((self.dur-t)),0,255)
-	self.entity:SetColor(Color(tmp2,tmp2,tmp2,tmp2))
+	self:SetColor(Color(tmp2,tmp2,tmp2,tmp2))
 	if not (t < self.dur) then
 		self.emitter:Finish()
 	end

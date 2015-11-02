@@ -1,5 +1,4 @@
 --[[
-
 	Author: MadDog (steam id md-maddog)
 ]]
 local DEATHVIEW = {}
@@ -22,7 +21,7 @@ end
 function DEATHVIEW:HUDPaint()
 	if (LocalPlayer():Alive()) then return end
 
-	SB:GetClass( "Hud" ):MakeHud({
+	GAMEMODE:GetClass( "Hud" ):MakeHud({
 		name = "DeathHud",
 		position = "Center Center",
 		enabled = true,
@@ -32,4 +31,4 @@ function DEATHVIEW:HUDPaint()
 	})
 end
 
-SB:Register( DEATHVIEW )
+GM:Register( DEATHVIEW )

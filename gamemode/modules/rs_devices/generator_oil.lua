@@ -9,15 +9,17 @@ RS:AddDevice({
 	model = {
 		"models/props_combine/CombineThumper002.mdl"
 	},
+	requires_name = {"Energy","Water","Coolant"},
 	resources = {
 		Oil = function(self)
 			return GENERATE(self) / 20
 		end,
 	},
-	--requires = {
-	--	Energy = CONSUME,
-	--	Water = CONSUME
-	--},
+	requires = {
+		Energy = CONSUME,
+		Water = CONSUME,
+		Coolant = CONSUME
+	},
 	BaseClass = {
 		Think = function(self)
 			self.BaseClass.Think(self)
@@ -32,7 +34,7 @@ RS:AddDevice({
 				self.thumper:SetModel( self:GetModel() )
 				self.thumper:Spawn()
 				self.thumper:Activate()
-				self.thumper:SetParent( self.Entity )
+				self.thumper:SetParent( self )
 				self.thumper:Fire("Disable","",0)
 
 				self.thumper:SetMoveType( MOVETYPE_NONE )

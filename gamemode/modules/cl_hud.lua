@@ -1,47 +1,64 @@
 --[[
 
 	Author: MadDog (steam id md-maddog)
+
+	--TODO:
+		- cleanup the code
+		- add a timeout option
 ]]
+local Color = Color
+local draw = draw
+local surface = surface
 
 local HUD = {}
 HUD.Name = "Hud"
 HUD.Author = "MadDog"
 HUD.Version = 1
+HUD.DefaultColor = Color(0, 0, 0, 100)
 
 --create default fonts to use
 for i=10,30,2 do
 	surface.CreateFont("MDSBtip"..i, {
-	    font="UiBold",
+	    font="Orial",
 	    size = i,
 	    weight = 300,
 	    antialias = true
 	})
 	surface.CreateFont("MDSBtipBold"..i, {
-	    font="UiBold",
+	    font="Orial",
 	    size = i,
-	    weight = 700,
+	    weight = 800,
 	    antialias = true
 	})
 end
 
+function HUD:GetDefaults()
+	return {
+		name = "Unknown",
+		width = 0,
+		height = 0,
+		padding = 6,
+		bgcolor = self.DefaultColor,
+		position = "Center Center",
+		rowspace = 0,
+		border = 4,
+		enabled = false,
+		font = "MDSBtip16"
+	}
+end
+
 function HUD:MakeHud( data )
-	local o = {}
-	o.name = data.name or "unknown"
-	o.width = data.width or 0
-	o.height = data.height or 0
-	o.padding = data.padding or 6
-	o.bgcolor = data.bgcolor or Color(0, 0, 0, 100)
-	o.position = string.Explode(" ", data.position or "Center Center")
-	o.rowspace = data.rowspace or 0
-	o.border = 4
-	o.enabled = data.enabled
-	o.pos = data.pos
+	local o = self:GetDefaults()
+
+	table.Merge(o, data)
 
 	local a = 100
+	local SW = ScrW()
+	local SH = ScrH()
 
 	if (!o.enabled or o.enabled == 0) then a = 1 end
 
-	o.a = smoothit( o.name .. "a", a )
+	o.a = GAMEMODE:Tween( o.name .. "a", a )
 
 	if (o.a <= 1) then return end --no alpha left so not point in drawing this stuff
 
@@ -49,38 +66,28 @@ function HUD:MakeHud( data )
 
 	--figure out the size
 	for _, info in pairs( data.rows ) do
-		info.font = info.font or "MDSBtip16"
+		surface.SetFont( info.font or o.font )
 
-		surface.SetFont( info.font )
+		local text = tostring(info.text) .. ""
 
-		local text = info.text .. ""
-
-		if (info.graph and info.graph.percent) then
-			text = text .. "  " .. info.graph.percent .. "%"
-		end
+		if (info.graph and info.graph.percent) then text = text .. "  " .. info.graph.percent .. "%" end
 
 		info.w, info.h = surface.GetTextSize( text )
 
-		if info.space then
-			info.h = info.h + o.padding
-		end
+		if info.space then info.h = info.h + o.padding end
 
 		if (info.graph) then
 			info.w = info.w + (o.padding*2) --padding always insures there is a space between text and percent value
 			o.height = o.height + o.padding
 		end
 
-		if (info.icon) then
-			info.w = info.w + 20
-		end
+		if (info.icon) then info.w = info.w + 20 end
 
 		if (info.w > o.width) then o.width = info.w end
 		o.height = o.height + info.h
 
 		if (info.graph) then
 			o.height = o.height + o.padding
-		else
-			o.height = o.height
 		end
 	end
 
@@ -88,12 +95,19 @@ function HUD:MakeHud( data )
 	if (data.minwidth and data.minwidth > o.width) then o.width = data.minwidth end
 
 	o.width = o.width + (o.padding*2)
-	--o.height = o.height + o.padding + (#data.rows * o.padding)
 	o.height = o.height + o.padding
 
-	--positions on screen
-	local px = {Left = 15, Right = (ScrW() - o.width - 15), Center = (ScrW() / 2) - (o.width / 2) }
-	local py = {Top = 15, Center = (ScrH() / 2) - (o.height / 2), Bottom = (ScrH() - o.height) - 15}
+	local positions = {}
+
+	positions["Top Left"] = {15, 15}
+	positions["Top Center"] = {(SW / 2) - (o.width / 2), 15}
+	positions["Top Right"] = {(SW - o.width - 15), 15}
+	positions["Middle Left"] = {15, (SH / 2) - (o.height / 2)}
+	positions["Middle Center"] = {(SW / 2) - (o.width / 2), (SH / 2) - (o.height / 2)}
+	positions["Middle Right"] = {(SW - o.width - 15), (SH / 2) - (o.height / 2)}
+	positions["Bottom Left"] = {15, (SH - o.height - 15)}
+	positions["Bottom Center"] = {(SH - o.height - 15), (SW / 2) - (o.width / 2)}
+	positions["Bottom Right"] = {(SW - o.width - 15), (SH - o.height - 15)}
 
 	--center on screen
 	if (o.pos) then
@@ -101,14 +115,13 @@ function HUD:MakeHud( data )
 		o.y = o.pos.y
 
 		--save box position
-		o.x = math.Clamp((o.x - (o.width/2) - 50), 30, (ScrW()-o.width-30))
-		o.y = math.Clamp((o.y - (o.height/2) - 50), 30, (ScrH()-o.height-30))
+		o.x = math.Clamp((o.x - (o.width/2) - 50), 30, (SW-o.width-30))
+		o.y = math.Clamp((o.y - (o.height/2) - 50), 30, (SH-o.height-30))
 	else
-		o.x = px[o.position[1]]
-		o.y = py[o.position[2]]
+		local spot = positions[o.position] or positions["Middle Center"]
 
-		o.x = smoothit( o.name .. "x", o.x )
-		o.y = smoothit( o.name .. "y", o.y )
+		o.x = GAMEMODE:Tween( o.name .. "x", spot[1] )
+		o.y = GAMEMODE:Tween( o.name .. "y", spot[2] )
 	end
 
 	--the box for the hud
@@ -121,8 +134,8 @@ function HUD:MakeHud( data )
 
 	--the text for the hud
 	for _, info in pairs( data.rows ) do
-		info.color = info.color or Color(255,255,255,255)
-		info.color2 = info.color2 or Color(0,0,0,35)
+		info.color = info.color or color_white
+		info.color2 = info.color2 or color_black
 
 		local color = Color(info.color.r,info.color.g,info.color.b,info.color.a * (o.a/100))
 		local color2 = Color(info.color2.r,info.color2.g,info.color2.b,info.color2.a * (o.a/100))
@@ -165,8 +178,8 @@ function HUD:MakeHud( data )
 	end
 end
 
-function SB:MakeHud(data)
+function GM:MakeHud(data)
 	HUD:MakeHud(data)
 end
 
-SB:Register( HUD )
+GM:Register( HUD )

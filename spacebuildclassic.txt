@@ -1,19 +1,8 @@
-"gamemode"
+"spacebuildclassic"
 {
 	"base"		"sandbox"
-	"title"		"MadDogs Spacebuild Classic v2"
+	"title"		"Spacebuild Classic
+	"author"	"MadDog"
 	"maps"		"^sb_"
 	"menusystem"	"1"
-
-	"settings"
-	{
-		1
-		{
-			"name"		"sb_spawndamage"
-			"text"		"Enable/Disable Spawn Planet Damage"
-			"help"		"When enabled players can not take damage on any spawn planet."
-			"type"		"numeric"
-			"default"	"1"
-		}
-	}
 }

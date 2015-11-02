@@ -1,7 +1,5 @@
 --[[
-
 	Author: MadDog (steam id md-maddog)
-
 ]]
 module( "data", package.seeall )
 
@@ -16,30 +14,6 @@ if SERVER then
 
 	local _history = {}
 	local historycount = 0
-
-	if (!table.Compare) then
-		function table.Compare( tbl1, tbl2 )
-		    for k, v in pairs( tbl1 ) do
-			if ( type(v) == "table" and type(tbl2[k]) == "table" ) then
-			    if ( !table.Compare( v, tbl2[k] ) ) then return false end
-			else
-			    if ( v != tbl2[k] ) then return false end
-			end
-		    end
-		    for k, v in pairs( tbl2 ) do
-			if ( type(v) == "table" and type(tbl1[k]) == "table" ) then
-			    if ( !table.Compare( v, tbl1[k] ) ) then return false end
-			else
-			    if ( v != tbl1[k] ) then return false end
-			end
-		    end
-		    return true
-		end
-	end
-
-	function GetHistory()
-		return _history
-	end
 
 	function Send( name, ... )
 		local args = {...}
@@ -77,7 +51,7 @@ if SERVER then
 
 		net.Start( "data.Receive" )
 		net.WriteString( name )
-		net.WriteTable( args )
+		net.WriteString( von.serialize(args) )
 
 		if (ply) then
 			net.Send(ply)
@@ -86,14 +60,11 @@ if SERVER then
 		end
 	end
 
-elseif CLIENT then
-
+else
 	local function Receive( len, ply )
 		local name = net.ReadString()
-		local args = net.ReadTable()
+		local args = von.deserialize(net.ReadString())
 		local func
-
-		SB:print("data.Receive: ", name)
 
 		for _, n in pairs( string.Explode( ".", name) ) do
 			if (func) then
@@ -103,7 +74,7 @@ elseif CLIENT then
 			end
 		end
 
-		if !func then MsgN("mddata: not such function: ", name); return end
+		if !func then MsgN("data.Receive: not such function: ", name); return end
 
 		func(unpack(args))
 	end

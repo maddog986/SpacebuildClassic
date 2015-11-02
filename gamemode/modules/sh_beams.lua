@@ -11,50 +11,12 @@
 		-- entity, entity2,
 		beams.Add( ent, ent2, ent:WorldToLocal(ent2:GetPos))
 
+	TODO: this was made long ago, really needs a complete recode to make more efficient but for now, it works.
 ]]
-//holds all the beam settings
+
 beams = {}
 
 if (SERVER) then
-
-	--this is used to get the CreatedEntities table since its not passed into duplicator.RegisterEntityModifier
-	-- credit to TomyLobo for this http://facepunch.com/threads/874611?p=19479141&viewfull=1#post19479141
-	-- modified a little so it also works with AdvDup2 ~MadDog
-	function WireLibPostDupe(entid, func)
-	    local CreatedEntities
-	    local paste_functions = {[duplicator.Paste] = true,[AdvDupe.Paste] = true,[AdvDupe.OverTimePasteProcess] = true}
-	    local i,info = 1,debug.getinfo(1)
-	    while info do
-		if paste_functions[info.func] then
-		    for j = 1,20 do
-			local name, value = debug.getlocal(i, j)
-			if name == "CreatedEntities" then
-			    CreatedEntities = value
-			    break
-			end
-		    end
-		    break
-		end
-		i = i+1
-		info = debug.getinfo(i)
-	    end
-	    if not CreatedEntities then  -- fix for AdvDup2
-			local function dupefinished( TimedPasteData, TimedPasteDataCurrent )
-				local ent = TimedPasteData[TimedPasteDataCurrent].CreatedEntities[entid]
-				if ent then func(ent) end
-			end
-			hook.Add("AdvDupe_FinishPasting", "WireLibPostDupeFallback", dupefinished )
-		return end
-	    local unique = {}
-	    timer.Create(unique, 1, 240, function(CreatedEntities, entid, unique, func)
-		local ent = CreatedEntities[entid]
-		if ent then
-		    timer.Remove(unique)
-		    func(ent)
-		end
-	    end, CreatedEntities, entid, unique, func)
-	end
-
 	hook.Add( "PlayerInitialSpawn", "beamsPlayerUpdate", function( ply )
 		beams.ResendAll( ply )
 	end )
@@ -66,83 +28,6 @@ if (SERVER) then
 		for _, ent in pairs( ents.GetAll() ) do
 			if (!ent._beams) then continue end
 			data.Send("beams.Update", ent, ent._beams, "nocache")
-		end
-	end
-
-	--adv dup call when entity is restored!
-	function beams.SettingsDup( ply, ent, beamsdata )
-		if (!beamsdata) then return end
-
-		ent:GetTable()._beams = beamsdata[1]
-		ent:GetTable()._beams_constraints = beamsdata[2]
-
-		local timerid = "beamupdate"..ent:EntIndex()
-
-		timer.Create(timerid, 1, 0, function()
-			if (!IsValid(ent)) then timer.Destroy(timerid) end
-			data.Send("beams.Update", ent, ent._beams, "nocache")
-		end)
-
-		for id, _data in pairs(ent:GetTable()._beams) do
-			for entid, vecs in pairs(_data.entities) do
-				WireLibPostDupe(entid, function(sent)
-					_data.entities[sent:EntIndex()] = _data.entities[entid]
-					_data.entities[entid] = nil
-
-					--kinda hacky but seems to work. only sends out the data when done dupping
-					timer.Destroy(timerid)
-					timer.Create(timerid, 1, 0, function()
-						timer.Destroy(timerid)
-						data.Send("beams.Update", ent, ent._beams, "nocache")
-					end)
-				end)
-			end
-		end
-	end
-	duplicator.RegisterEntityModifier( "beams", beams.SettingsDup )
-
-
-
-	--THIS IS OLD! Not sure if this even works right now. TODO: Recode it?
-	beams.MaxDistance = 400
-	beams.CheckDistance = function( ent )
-		if (!ent._beams_constraints) then return end
-		if (!ent._beams_warn) then ent._beams_warn = {} end
-
-		--new system, work in progress
-		for _entid, _rowid in pairs( ent._beams_constraints or {} ) do --loop through all the saved beams
-			local _ent = ents.GetByIndex(_entid)
-
-			if (!_ent or !IsValid(_ent)) then
-				ent._beams_constraints[_rowid] = nil --remove
-				continue --next record please
-			end
-
-			local distance = (_ent:GetPos() - ent:GetPos()):Length()
-
-			if (distance > beams.MaxDistance) then
-				ent._beams_warn[_ent:EntIndex()] = (ent._beams_warn[_ent:EntIndex()] or 0) + 1 --increase timer for this connection
-
-				--5 chances to fix
-				if (ent._beams_warn[_ent:EntIndex()] >= 5) then
-					ent._beams_warn[_ent:EntIndex()] = nil --reset length warn count
-
-					ent._beams_constraints[_entid] = nil
-					if (_ent._beams) then _ent._beams[_rowid].entities[ent:EntIndex()] = nil end	--remove ent from the link
-
-					data.Send("beams.Add", _ent, _rowid, ent:EntIndex(), nil, "nocache") --send an update to remove
-
-					--break sound
-					_ent:EmitSound("physics/metal/metal_computer_impact_bullet"..math.random(1,3)..".wav", 500)
-					ent:EmitSound("physics/metal/metal_computer_impact_bullet"..math.random(1,3)..".wav", 500)
-				else
-					local vol = 30 * self._beams_warn[_ent:EntIndex()]
-					_ent:EmitSound("ambient/energy/newspark0"..math.random(1,9)..".wav", vol)
-					self:EmitSound("ambient/energy/newspark0"..math.random(1,9)..".wav", vol)
-				end
-			else
-				self._beams_warn[_ent:EntIndex()] = nil
-			end
 		end
 	end
 end
@@ -287,7 +172,7 @@ if (CLIENT) then
 	end
 
 	beams.Update = function(ent, info, tries)
-		 --a little hacky i know, but sometimes on dupe spawns GetTable isnt ready yet for clients :)
+		 --a little hacky i know, but sometimes on dupe spawns GetTable isnt ready yet for clients
 		if (!IsValid(ent)) then return end
 		if ent:GetTable() == nil and (tries or 0) < 10 then
 			timer.Simple(0.1, beams.Update, ent, info, (tries or 0) + 1);
@@ -309,6 +194,88 @@ if (CLIENT) then
 		end
 	end
 
+	local function hermite(startingPoint, startingTangent, endingTangent, endingPoint, time, tension, bias)
+
+		local time2 = time ^ 2
+		local time3 = time ^ 3
+
+		local m0 = (startingTangent - startingPoint) * (1 + bias) * (1 - tension) / 2 + (endingTangent - startingTangent) * (1 - bias) * (1 - tension) / 2
+		local m1 = (endingTangent - startingTangent) * (1 + bias) * (1 - tension) / 2 + (endingPoint - endingTangent) * (1 - bias) * (1 - tension) / 2
+
+		local a0 = 2 * time3 - 3 * time2 + 1;
+		local a1 = time3 - 2 * time2 + time;
+		local a2 = time3 - time2;
+		local a3 = -2 * time3 + 3 * time2;
+
+		return (a0 * startingTangent + a1 * m0 + a2 * m1 + a3 * endingTangent)
+
+	end
+
+	beams.Render = function( ent )
+		if (!ent._beams) then return end --no beams dont render
+
+		local mins, maxs = ent:WorldSpaceAABB()
+		local segments = 15
+		local position = Vector()
+
+		for _id, _info in pairs( ent._beams ) do --loop through all the saved beams
+			local entities = _info.entities
+			local settings = _info.settings
+
+			local beamMaterial, beamSize, beamColor = beams.Materials[settings.material or "cable/rope_icon"], tonumber(settings.size or 0), settings.color or color_white
+
+			local startingPoint, endingPoint, startingTangent, endingTangent
+
+			for entid, beampoints in pairs( entities ) do
+				local beamEnt = ents.GetByIndex(entid)
+
+				if (!startingPoint) then
+					startingPoint = beamEnt:LocalToWorld(beampoints[1])
+					startingTangent = (beamEnt:GetPos() - startingPoint) * -5
+				else
+					endingPoint = beamEnt:LocalToWorld(beampoints[1])
+					endingTangent = (beamEnt:GetPos() - endingPoint) * -5
+				end
+			end
+
+			if (!startingPoint or !endingPoint) then continue end --not yet ready to do it
+
+			render.DrawSphere(startingPoint, beamSize * 0.5, 10, 10, beamColor)
+			render.DrawSphere(endingPoint, beamSize * 0.5, 10, 10, beamColor)
+
+			render.SetMaterial( beamMaterial )
+			render.StartBeam(segments)
+			render.AddBeam(startingPoint, beamSize, 1, beamColor)
+
+			for segment = 2, segments - 1 do
+				local t = 1 / segments * segment
+
+				position.x = hermite(startingPoint.x - startingTangent.x, startingPoint.x, endingPoint.x, endingPoint.x - endingTangent.x, t, -1, 0)
+				position.y = hermite(startingPoint.y - startingTangent.y, startingPoint.y, endingPoint.y, endingPoint.y - endingTangent.y, t, -1, 0)
+				position.z = hermite(startingPoint.z - startingTangent.z, startingPoint.z, endingPoint.z, endingPoint.z - endingTangent.z, t, -1, 0)
+
+				render.AddBeam(position, beamSize, 1, beamColor)
+
+				local localpos = ent:WorldToLocal(position)
+
+				if (localpos.x < mins.x) then mins.x = localpos.x end
+				if (localpos.y < mins.y) then mins.y = localpos.y end
+				if (localpos.z < mins.z) then mins.z = localpos.z end
+
+				if (localpos.x > maxs.x) then maxs.x = localpos.x end
+				if (localpos.y > maxs.y) then maxs.y = localpos.y end
+				if (localpos.z > maxs.z) then maxs.z = localpos.z end
+			end
+
+			render.AddBeam(endingPoint, beamSize, 1, beamColor)
+			render.EndBeam()
+		end
+
+		--ent:SetRenderBounds(mins, maxs)
+	end
+
+	--[[
+	OLD CODE
 	beams.Render = function( ent )
 		if (!ent._beams) then return end --no beams dont render
 
@@ -369,5 +336,7 @@ if (CLIENT) then
 		end
 
 		if (bbmin and bbmax) then ent:SetRenderBounds(bbmin, bbmax) end
-	end
+	end]]
 end
+
+GM:Register( beams )

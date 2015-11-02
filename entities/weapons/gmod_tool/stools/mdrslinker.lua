@@ -120,13 +120,13 @@ end
 
 function TOOL:RightClick( tr )
 	--if not valid or player, exit
-	if ( tr.Entity:IsValid() && tr.Entity:IsPlayer() ) || (!tr.Entity || !IsValid(tr.Entity)) then self:changetool() end
+	if ( IsValid(tr.Entity) && tr.Entity:IsPlayer() ) || (!IsValid(tr.Entity)) then self:changetool() end
 	--if client exit
 	if ( CLIENT ) then self:changetool() end
 	-- If there's no physics object then we can't constraint it!
 	if ( !util.IsValidPhysicsObject( tr.Entity, tr.PhysicsBone ) ) then self:changetool() end
 	--entity must be a part of the Resource System
-	if (!tr.Entity.RS) then return false end
+	if (!IsValid(tr.Entity) or tr.Entity.RS) then return false end
 
 
 	--how many objects stored

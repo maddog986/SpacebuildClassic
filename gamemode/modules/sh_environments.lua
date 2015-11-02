@@ -4,53 +4,80 @@
 
 	TODO:
 		- add a Fahrenheit or Celcius option
+		- add blooms and colors to planets
 		- reduce color blooms when planets are terra formed
 		- on terraformed planets disable entities: env_smokestack, func_dustcloud
 		- add planet ambient sounds
 ]]
 
-local ENVIRONMENTS = {}
-ENVIRONMENTS.Name = "Environments"
-ENVIRONMENTS.Author = "MadDog"
-ENVIRONMENTS.Version = 1
+local ValidEntity = ValidEntity
+local Color = Color
+local math = math
+local type = type
+local data = data
+local table = table
+local pairs = pairs
+local net = net
+
+ENVIRONMENTS = {
+	Name = "Environments",
+	Author = "MadDog",
+	Version = 1
+}
+
+function ENVIRONMENTS:GetDefaultEnvironment()
+	return {gravity = 1, pressure = 1, oxygen = 100, atmosphere = 1, temperature = 288, lowtemperature = 288, hightemperature = 288}
+end
+
+function ENVIRONMENTS:GetSpaceEnvironment()
+	return {gravity = 0, pressure = 0, oxygen = 0, atmosphere = 0, temperature = 0, lowtemperature = 0, hightemperature = 0}
+end
 
 if CLIENT then
-	local sbhudposition = CreateClientConVar( "mdsb_sbhudposition", "Right Top", true, false )
-	local sbhudtimeout = CreateClientConVar( "mdsb_sbhudtimeout", 20, true, false )
-	local blooms = CreateClientConVar( "mdsb_blooms", "1", true, false )
-	local colors = CreateClientConVar( "mdsb_colors", "1", true, false )
-	local suns = CreateClientConVar( "mdsb_suns", "1", true, false )
-	local snow_intense = CreateClientConVar( "mdsb_snowintense", "20", true, false )
-	local rain_intense = CreateClientConVar( "mdsb_rainintense", "20", true, false )
+	net.Receive( "EnvironmentUpdate", function( len, ply )
+		local data = {
+			gravity = net.ReadFloat(),
+			pressure = net.ReadFloat(),
+			oxygen = net.ReadFloat(),
+			atmosphere = net.ReadFloat(),
+			temperature = net.ReadFloat(),
+			planet = net.ReadEntity()
+		}
 
-	local ename = "Environment"
-	local oxygen = 0
-	local gravity = 0
-	local temperature = math.random(0, 100)
-	local atmosphere = 0
+		LocalPlayer().environment = data
 
-	function SetEnvironment( o, g, t, a, name, ent )
-		if (name == "") then name = "Environment" end
+		ENVIRONMENTS.environment = ENVIRONMENTS.environment or {}
 
-		oxygen = o
-		gravity = (g * 100)
-		temperature = math.Round(t * 9/5 - 459.67) --kelvin to fahrenheit
-		atmosphere = math.ceil(a)
-		ename = name
+		table.Merge( ENVIRONMENTS.environment, data)
+	end)
+
+	function ENVIRONMENTS:InitPostEntity()
+		self.environment = self:GetDefaultEnvironment()
 	end
 
 	local laste = ""
 	local lastetime = 0
 
 	function ENVIRONMENTS:HUDPaint()
-		local o = smoothit("oxygen", oxygen)
-		local g = smoothit("gravity", gravity)
-		local t = smoothit("temperature", temperature)
+		local hudposition = OPTIONS:Get( "hudposition", "Right Top" )
+		local hudtimeout = OPTIONS:Get( "hudtimeout", 30)
 
-		local hudtimeout = sbhudtimeout:GetInt()
+		local atmosphere = self.environment.atmosphere
+		local oxygen = self.environment.oxygen
+		local gravity = self.environment.gravity
+		local temperature = self.environment.temperature
+		local environmentname = "Space"
 
-		if ((o .. g .. t .. sbhudposition:GetString()) != laste) then
-			laste = (o .. g .. t .. sbhudposition:GetString())
+		if (IsValid(self.environment.planet)) then
+			environmentname = self.environment.planet:GetEnvironmentName()
+		end
+
+		local o = GAMEMODE:Tween("oxygen", oxygen)
+		local g = GAMEMODE:Tween("gravity", gravity)
+		local t = GAMEMODE:Tween("temperature", temperature)
+
+		if ((o .. g .. t .. hudposition) != laste) then
+			laste = (o .. g .. t .. hudposition)
 			lastetime = CurTime() + hudtimeout
 		end
 
@@ -68,16 +95,16 @@ if CLIENT then
 			as = "Normal"
 		end
 
-		SB:MakeHud({
+		GAMEMODE:MakeHud({
 			name = "EnvironmentsHud",
-			position = sbhudposition:GetString(),
+			position = hudposition,
 			enabled = ((LocalPlayer():Alive() and lastetime > CurTime()) or hudtimeout == 0),
 			minwidth = 130,
 			rows = {
 				{
 					graph = {
 						color=Color(80,80,80,100)},
-						text = ename,
+						text = environmentname,
 						color = Color(255, 255, 0),
 						font = "MDSBtipBold18",
 						xalign = TEXT_ALIGN_CENTER
@@ -98,113 +125,112 @@ if CLIENT then
 			}
 		})
 	end
+end
 
-	function ENVIRONMENTS:RenderColor( color )
-		if (!colors:GetBool() or !vector_origin) then return end
-		if (!color or (color.addcol == vector_origin and color.mulcol == vector_origin and color.contrast == 1 and color.brightness == 1 and color.color == 1)) then return end
-		if (color.addcol == vector_origin and color.mulcol == vector_origin and color.contrast == 0 and color.brightness == 0 and color.color == 0) then return end
+GM:Register( ENVIRONMENTS )
 
-		local cmod = {}
-		cmod["$pp_colour_addr"] = color.addcol.x
-		cmod["$pp_colour_addg"] = color.addcol.y
-		cmod["$pp_colour_addb"] = color.addcol.z
-		cmod["$pp_colour_brightness"] = color.brightness
-		cmod["$pp_colour_contrast"] = color.contrast
-		cmod["$pp_colour_colour"] = color.color
-		cmod["$pp_colour_mulr"] = color.mulcol.x
-		cmod["$pp_colour_mulg"] = color.mulcol.y
-		cmod["$pp_colour_mulb"] = color.mulcol.z
 
-		DrawColorModify( cmod )
+--[[
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////// SERVER SIDE STUFF IS HERE //////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+]]
+if !SERVER then return end
+
+ENVIRONMENTS.Entities = {}
+ENVIRONMENTS.Planets = {}
+ENVIRONMENTS.Stars = {}
+ENVIRONMENTS.Spacebuild = false
+ENVIRONMENTS.Ignore = { "base_environment", "sb_planet", "base_resource", "base_lifesupport", "logic_case", "func_physbox_multiplayer", "func_physbox" }
+
+util.AddNetworkString( "EnvironmentUpdate" )
+
+function ENVIRONMENTS:IgnoreClass( ent )
+	return table.HasValue(self.Ignore, ent:GetClass())
+end
+
+function ENVIRONMENTS:PhysgunPickup( ply , ent )
+	if table.HasValue(self.Ignore, ent:GetClass()) then
+		return false
 	end
+end
 
-	function ENVIRONMENTS:RenderBloom(bloom)
-		if (!blooms:GetBool()) then return end
-		--DrawBloom(bloom.darken,bloom.multiply,bloom.sizex,bloom.sizey,bloom.passes,bloom.color,bloom.color.r,bloom.color.g,bloom.color.b)
+function ENVIRONMENTS:GetEntities()
+	return self.Entities
+end
+
+function ENVIRONMENTS:HasEntity( ent )
+	return IsValid(self.Entities[ent:EntIndex()])
+end
+
+function ENVIRONMENTS:EntityRemoved( ent )
+	self.Entities[ent:EntIndex()] = nil
+end
+
+function ENVIRONMENTS:OnEntitySpawn( ent )
+	if (!IsValid(ent)) then return end
+
+	self.Entities[ent:EntIndex()] = ent
+end
+
+function ENVIRONMENTS:PlayerSpawnedNPC( ply, ent ) self:OnEntitySpawn( ent ) end
+function ENVIRONMENTS:PlayerSpawnedSENT( ply, ent ) self:OnEntitySpawn( ent ) end
+function ENVIRONMENTS:PlayerSpawnedVehicle( ply, ent ) self:OnEntitySpawn( ent ) end
+function ENVIRONMENTS:PlayerSpawnedProp( ply, model, ent ) self:OnEntitySpawn( ent ) end
+function ENVIRONMENTS:PlayerSpawnRagdoll( ply, model ) self:OnEntitySpawn( ent ) end
+function ENVIRONMENTS:OnEntityCreated( ent ) self:OnEntitySpawn(ent) end
+
+function ENVIRONMENTS:GetTemperature( ent, low, high )
+	if (!IsValid(ent)) then return (low or high) end
+	if (low == high or (low and !high)) then return low or 0 end
+	if (!low and high) then return high end
+	if (!low and !high) then return -1 end
+	for _, _ent in pairs( self.Stars ) do
+		if (ent:Visible(_ent)) then return high end
 	end
+	return low
+end
 
-	--strong wind: /ambient/ambience/wind_light02_loop.wav
-	--/ambient/animal/flies1.wav - files5.wav
-	--/ambient/creatures/rats1.wav - rates4.wav
-	--/ambient/halloween/windgust_01.wav - windguest_12.wav
+--registers player within the environment quicker
+function ENVIRONMENTS:PlayerSpawn( ply )
+	self:OnEntitySpawn( ply )
 
-	local rainbrightness = 0
-	local raincontrast = 1
-	local raincolour = 1
+	ply.Environments = {}
+	ply.EnvironmentValues = self:GetSpaceEnvironment()
+	ply:SetGravity( 1 )
+	ply:SetHealth(100)
+end
 
-	function ENVIRONMENTS:RenderScreenspaceEffects()
-		for _, ent in ipairs(ents.FindByClass("sb_planet")) do
-			local onplanet = LocalPlayer():GetPos():Distance(ent:GetPos()) < ent:GetRadius()
+function ENVIRONMENTS:EntityTakeDamage( ent, inflictor, attacker, amount, dmginfo )
+	if (self:IgnoreClass(ent) or OPTIONS:Get("spawndamage", 1) ~= 1) then return false end
 
-			if (suns:GetBool() and ent:GetName() == "Star") then ent:RenderSunbeams() end
+	for _, ent in pairs( ent:GetEnvironments() ) do
+		if (ent.spawnpoint) then return false end
+	end
+end
 
-			if (!onplanet) then continue end
-
-			if (!self.RainSound) then
-				self.RainSound = CreateSound(LocalPlayer(), Sound("/ambient/weather/rumble_rain_nowind.wav"))
-			end
-
-			if ( ent:IsRaining() or SB:ConfigInt("sb_israining") == 1 ) then
-				self.RainSound:Play()
-
-				if (rain_intense:GetInt() > 0) then
-					local e = EffectData()
-					e:SetMagnitude(rain_intense:GetInt())
-					util.Effect("rain", e)
-				end
-
-				rainbrightness = math.Approach(rainbrightness, -0.07, 0.005)
-				raincontrast = math.Approach(raincontrast, 0.9, 0.005)
-				raincolour = math.Approach(raincolour, 0.5, 0.005)
-			else
-				if self.RainSound:IsPlaying() then self.RainSound:FadeOut(2) end
-
-				rainbrightness = math.Approach(rainbrightness, 0, 0.005)
-				raincontrast = math.Approach(raincontrast, 1, 0.005)
-				raincolour = math.Approach(raincolour, 1, 0.005)
-			end
-
-			if ( ent:IsSnowing() or SB:ConfigInt("sb_issnowing") == 1 ) then
-				if (!self.SnowSoundPlay or self.SnowSoundPlay < CurTime()) then
-					self.SnowSoundPlay = CurTime() + 4
-
-					sound.Play(Sound("ambient/halloween/windgust_0" .. math.random(1, 9) .. ".wav"), LocalPlayer():GetPos()) -- windguest_12.wav
-				end
-
-				if (snow_intense:GetInt() > 0) then
-					local e = EffectData()
-					e:SetMagnitude(snow_intense:GetInt())
-					util.Effect("snow", e)
-				end
-			end
-
-			self:RenderColor({
-				mulcol = Vector(0,0,0),
-				addcol = Vector(0,0,0),
-				contrast = raincontrast,
-				color = raincolour,
-				brightness = rainbrightness
-			})
-
-			local color = ent:GetNWVector("bloomcolor")
-
-			self:RenderBloom({
-				darken = ent:GetNWFloat("darken"),
-				multiply = ent:GetNWFloat("multiply"),
-				sizex = ent:GetNWFloat("sizex"),
-				sizey = ent:GetNWFloat("sizey"),
-				passes = ent:GetNWFloat("passes"),
-				color = Color(color.x, color.y, color.z)
-			})
-
-			self:RenderColor({
-				mulcol = ent:GetNWVector("mulcol"),
-				addcol = ent:GetNWVector("addcol"),
-				contrast = ent:GetNWFloat("contrast"),
-				color = ent:GetNWFloat("color"),
-				brightness = ent:GetNWFloat("brightness")
-			})
+function ENVIRONMENTS:PlayerShouldTakeDamage( ply, attacker )
+	if (OPTIONS:Get("spawndamage", 1) == 1 && ply ~= attacker) then
+		for _, ent in pairs(  ply:GetEnvironments() ) do
+			if (IsValid(ent) and ent.spawnpoint) then return false end
 		end
+	end
+end
+
+function ENVIRONMENTS:CreatePlanet( data )
+	local ent = ents.Create("sb_planet")
+
+	ent:SetPos( data.position )
+	ent:Spawn()
+	ent:Activate()
+	ent:SetEnvironment( data )
+
+	if (data.star) then
+		table.insert( self.Stars, ent ) --add to stars
+	else
+		table.insert( self.Planets, ent ) --add to planets
 	end
 end
 
@@ -214,7 +240,7 @@ function ENVIRONMENTS:IsSpawnPlanet( planet )
 	if (planet.spawnPlanet) then return true end
 
 	for _, ent in pairs(ents.FindByClass("info_player_start")) do
-		if (ent:GetPos():Distance(planet.position) < planet.radius) then
+		if (ent:GetPos():Distance (planet.position) < planet.radius) then
 			planet.spawnPlanet = true --cache the result
 			return true
 		end
@@ -230,475 +256,333 @@ function ENVIRONMENTS:IsSpawnPlanet( planet )
 	return false
 end
 
-if SERVER then
-	ENVIRONMENTS.Entities = {}
-	ENVIRONMENTS.Planets = {}
-	ENVIRONMENTS.Stars = {}
-	ENVIRONMENTS.Spacebuild = false
+function ENVIRONMENTS:InitPostEntity( )
+	self.Planets = {}
+	self.Stars = {}
 
-	ENVIRONMENTS.default_environment =  {gravity = 1, oxygen = 100, atmosphere = 1, temperature = 288, lowtemperature = 288, hightemperature = 288}
-	ENVIRONMENTS.space_environment =  {gravity = 0, oxygen = 0, atmosphere = 0, temperature = 0, lowtemperature = 0, hightemperature = 0}
-
-	function ENVIRONMENTS:GetEntities()
-		return self.Entities
+	for _, ent in pairs(ents.FindByClass("sb_planet")) do --cleanup planets since we are going to recreate them
+		ent:Remove()
 	end
 
-	function ENVIRONMENTS:EntityRemoved( ent )
-		table.RemoveByValue( self.Entities, ent )
+	local Blooms = {}
+	local Colors = {}
+
+	local function Extract_Bit(bit, field) --used to get SB2 planet flags
+		if not bit or not field then return false end
+		local retval = 0
+		if ((field <= 7) and (bit <= 4)) then
+			if (field >= 4) then
+				field = field - 4
+				if (bit == 4) then return true end
+			end
+			if (field >= 2) then
+				field = field - 2
+				if (bit == 2) then return true end
+			end
+			if (field >= 1) then
+				field = field - 1
+				if (bit == 1) then return true end
+			end
+		end
+		return false
 	end
 
-	local function OnEntitySpawn( ent )
-		if not table.HasValue(ENVIRONMENTS.Entities, ent) then
-			table.insert( ENVIRONMENTS.Entities, ent )
+	--try to get a planet name based off bloom or color id values. works on some SB2 maps.
+	local function Extract_SBPlanetName( value, planet )
+		local name = string.Replace(value, "bloom_", "")
+		name = string.Replace(value, "color_", "")
+
+		if (name ~= "") then
+			name = string.upper(string.Left(name, 1)) .. string.Right(name, string.len(name)-1)
+
+			if (string.len(name) > 1) then planet.name = name end
 		end
 	end
 
-	function ENVIRONMENTS:PlayerSpawnedNPC( ply, ent ) OnEntitySpawn( ent ) end
-	function ENVIRONMENTS.PlayerSpawnedSENT( ply, ent ) OnEntitySpawn( ent ) end
-	function ENVIRONMENTS.PlayerSpawnedVehicle( ply, ent ) OnEntitySpawn( ent ) end
-	function ENVIRONMENTS:PlayerSpawnedProp( ply, model, ent ) OnEntitySpawn( ent ) end
+	for _, ent in pairs( ents.FindByClass( "logic_case" ) ) do
+		--get values
+		local tab = ent:GetKeyValues()
+		local case = tab.Case01
 
-	function ENVIRONMENTS:GetTemperature( ent, low, high )
-		if (!IsValid(ent)) then return (low or high) end
-		if (low == high or (low and !high)) then return low or 0 end
-		if (!low and high) then return high end
-		if (!low and !high) then return -1 end
+		if case == "planet_color" then
+			local color = {}
+			color.id = tab.Case16
+			color.addcol = Vector( tab.Case02 )
+			color.mulcol = Vector( tab.Case03 )
+			color.brightness = tonumber( tab.Case04 )
+			color.contrast = tonumber( tab.Case05 )
+			color.color = tonumber( tab.Case06 )
 
-		for _idx, _ent in pairs( self.Stars ) do --go through all the stars
-			if (ent:Visible(_ent)) then return high end
+			Colors[color.id] = color
+
+		elseif case == "planet_bloom" then
+			local bloom = {}
+			bloom.id = tab.Case16
+			bloom.color = Vector( tab.Case02 )
+			bloom.x = tonumber( string.Explode( " ", tab.Case03 )[1] )
+			bloom.y = tonumber( string.Explode( " ", tab.Case03 )[2] )
+			bloom.passes = tonumber( tab.Case04 )
+			bloom.darken = tonumber( tab.Case05 )
+			bloom.multiply = tonumber( tab.Case06 )
+			bloom.colormul = tonumber( tab.Case07 )
+
+			Blooms[bloom.id] = bloom
 		end
-
-		return low
 	end
 
-	--registers player within the environment quicker
-	function ENVIRONMENTS:PlayerSpawn( ply )
-		OnEntitySpawn( ply )
+	for _, ent in pairs( ents.FindByClass( "logic_case" ) ) do
+		local tab = ent:GetKeyValues()
+		local case = tab.Case01
 
-		ply.Environments = {}
-		ply.EnvironmentValues = table.Copy(self.default_environment)
-		ply:SetGravity( 1 )
-		ply:SetHealth(100)
+		if case == "env_rectangle" then
+			MsgN("\n\n\n env_rectangle!!!!!! \n\n\n")
+		elseif case == "cube" then
+			MsgN("\n\n\n CUBE!!!!!! \n\n\n")
+		elseif case == "planet" then --sb2 planet
+			local flags = tonumber(tab.Case16)
+
+			local planet = {}
+			planet.radius = tonumber(tab.Case02)
+			planet.gravity = tonumber(tab.Case03)
+			planet.atmosphere = tonumber(tab.Case04)
+			planet.lowtemperature = tonumber(tab.Case05)
+			planet.hightemperature = (tonumber(tab.Case06) || planet.lowtemperature)
+			--planet.colorid = tostring(tab.Case07)
+			planet.color = Colors[planet.colorid]
+			--planet.bloomid = tostring(tab.Case08)
+			planet.bloom = Blooms[planet.bloomid]
+			planet.name = "Planet " .. #self.Planets + 1
+			planet.position = ent:GetPos()
+			--planet.spawnpoint = self:IsSpawnPlanet(planet)
+			planet.habitat = Extract_Bit(1, flags)
+			planet.unstable = Extract_Bit(2, flags)
+			planet.sunburn = Extract_Bit(3, flags)
+
+			--sometimes SB2 planets use bloom ids that are the planet names. lets try to get it
+			Extract_SBPlanetName( tostring(tab.Case08), planet )
+			Extract_SBPlanetName( tostring(tab.Case07), planet )
+
+			if (planet.habitat) then
+				planet.oxygen = 100
+			else
+				planet.oxygen = 0
+			end
+
+			planet.pressure = 1
+
+			self:CreatePlanet( planet )
+			print("planet found.")
+		elseif case == "planet2" then --sb3 planet
+			local planet = {}
+			planet.radius = tonumber(tab.Case02) --Get Radius
+			planet.gravity = tonumber(tab.Case03) --Get Gravity
+			planet.atmosphere = tonumber(tab.Case04)
+			planet.pressure = tonumber(tab.Case05)
+			planet.lowtemperature = tonumber(tab.Case06)
+			planet.hightemperature = tonumber(tab.Case07) || planet.lowtemperature
+			planet.oxygen = tonumber(tab.Case09)
+			planet.name = tostring(tab.Case13) || ("Planet " .. #self.Planets + 1) --Get Name
+			planet.color = Colors[tostring(tab.Case15)]
+			planet.bloom = Blooms[tostring(tab.Case16)]
+			planet.position = ent:GetPos()
+			--planet.spawnpoint = self:IsSpawnPlanet(planet)
+
+			self:CreatePlanet( planet )
+
+			print("planet2 found.")
+		elseif case == "star" then
+			local star = {}
+			star.radius = tonumber(tab.Case02)
+			star.position = ent:GetPos()
+			star.star = true
+
+			self:CreatePlanet( star )
+			print("star found.")
+		elseif case == "star2" then
+			local star = {}
+			star.radius = tonumber(tab.Case02) --Get Radius
+			star.gravity = tonumber(tab.Case03) --Get Gravity
+			star.name = tostring(tab.Case06 || "Star")
+			star.position = ent:GetPos()
+			star.star = true
+
+			self:CreatePlanet( star )
+			print("star2 found.")
+		end
 	end
+
+	self.Spacebuild = #self.Planets > 0
+
+	if (!self.Spacebuild) then
+		GAMEMODE:RemoveClass( self )
+
+		print("----------------------------------------")
+		print("ERROR: Not a Spacebuild map. Removing Environments.")
+		print("----------------------------------------")
+	end
+end
+
+--called when entity enters an environment
+function ENVIRONMENTS:EnterEnvironment( ent, environment )
+	if (!self:HasEntity(ent) or self:IgnoreClass(ent)) then return end
+
+	ent.Environments = ent.Environments or {}
+	ent.Environments[environment:EntIndex()] = environment
+
+	if (environment:IsPlanet()) then
+		ent:SetPlanet( environment )
+	end
+
+	self:EnvironmentUpdate( ent )
+
+	MsgN("EnterEnvironment", ent, environment)
+end
+
+--called when entity leaves an environment
+function ENVIRONMENTS:LeaveEnvironment( ent, environment )
+	if (!self:HasEntity(ent) or self:IgnoreClass(ent)) then return end
+
+	ent.Environments = ent.Environments or {}
+
+	if (environment:IsPlanet()) then
+		ent:SetPlanet()
+	end
+
+	ent.Environments[environment:EntIndex()] = nil
+
+	self:EnvironmentUpdate( ent )
+
+	MsgN("LeaveEnvironment", ent, environment)
+end
+
+function ENVIRONMENTS:GetPlanet( ent )
+	--get all the entities claiming to control the environment for this entity
+	for _, environment in pairs( ent:GetEnvironments() ) do
+		if (!IsValid(environment)) then continue end
+		if (environment:IsPlanet()) then
+			return environment
+		end
+	end
+end
+
+function ENVIRONMENTS:EnvironmentUpdate( ent )
+	if (!IsValid(ent)) then return end
+	if (ent:IsPlayer() and !ent:Alive()) then return end
+
+	local oldvalues = ent:GetEnvironmentData()
+	local values = self:GetSpaceEnvironment()
+	local pos = ent:GetPos()
+	local planet = ent:GetPlanet()-- or self:GetPlanet( ent )
+
+	values.planet = planet
+
+	if (planet) then
+		table.Merge(values, planet:GetEnvironment())
+	end
+
+	--add environments to the mix
+	for _, environment in pairs( ent:GetEnvironments() ) do
+		if (!IsValid(environment) or environment:IsPlanet() or !environment:GetActive()) then continue end
+
+		table.Merge(values, environment:GetEnvironment())
+	end
+
+	--temp checks
+	values.temperature = self:GetTemperature( ent, values.lowtemperature, values.hightemperature )
+
+	--water level check
+	if (ent:WaterLevel() > 2) then
+		values.oxygen = 0
+		values.atmosphere = -1
+	end
+
+	--apply gravity in space only if entity can land on something below them..
+	if (!planet and values.gravity > 0) then
+		local trace = util.TraceLine({
+			start = ent:GetPos(),
+			endpos = ent:GetPos() - Vector(0,0,200),
+			filter = ent
+		})
+
+		if (!IsValid(trace.Entity) ) then
+			values.gravity = 0
+		end
+	end
+
+	local phys = ent:GetPhysicsObject()
+
+	if (IsValid(phys)) then
+		phys:EnableGravity( values.gravity > 0 )
+		phys:EnableDrag( values.pressure > 0.01 )
+	end
+
+	ent:SetEnvironmentData( values )
+	ent:SetGravity( values.gravity )
+
+	--send environment update, only if its changed
+	if (ent:IsPlayer() and (oldvalues.gravity ~= values.gravity or oldvalues.pressure ~= values.pressure or oldvalues.oxygen ~= values.oxygen or oldvalues.atmosphere ~= values.atmosphere or oldvalues.temperature ~= values.temperature or oldvalues.planet ~= values.planet)) then
+		net.Start( "EnvironmentUpdate" )
+		net.WriteFloat( (values.gravity * 100) )
+		net.WriteFloat( values.pressure )
+		net.WriteFloat( values.oxygen )
+		net.WriteFloat( math.ceil(values.atmosphere) )
+		net.WriteFloat( math.Round(values.temperature * 9/5 - 459.67) )
+		net.WriteEntity( values.planet )
+		net.Send( ent )
+	end
+end
+--[[
+this should not be needed anymore due to the touch events but leaving code here
+for debug or justincase touch events dont work anymore ~MadDog
 
 	function ENVIRONMENTS:Think()
-		self.NextThink = CurTime() + 0.5
+		self.NextThink = CurTime() + OPTIONS:Get("environmentsupdate", 1)
 
 		if (!self.Spacebuild) then return end
 
-		if not table.HasValue(self.Entities, Entity(1)) then
-			table.insert( self.Entities, Entity(1) )
-		end
-
-		for _, ent in pairs( self.Entities ) do
-			if (!IsValid(ent)) then
-				table.RemoveByValue( self.Entities, ent )
-			continue end
-
-			local values = table.Copy(self.space_environment)
-			local valuesin = table.Copy(values)
-			local pname = ""
-			local pos = ent:GetPos()
-
-			if (ent:IsPlayer() and !ent:Alive()) then
-				values = table.Copy(self.default_environment)
-			else
-				for _, environment in pairs( ent:GetEnvironments() ) do
-					if (!IsValid(environment)) then
-						ent:RemoveEnvironment( environment )
-					continue end
-
-					local radius = environment:GetRadius()
-					local epos = environment:GetPos()
-					local distance = pos:Distance(epos)
-					local onplanet = (distance <= radius)
-
-					if (!onplanet) then
-						ent:RemoveEnvironment( environment )
-						continue
-					elseif (environment:IsPlanet()) then
-						pname = environment:GetName()
-					end
-
-					local e = environment:GetEnvironment()
-
-					for name, value in pairs(values) do
-						if type(e[name]) != "number" then continue end
-						values[name] = values[name] + e[name]
-						valuesin[name] = valuesin[name] + 1
-					end
-				end
-
-				for name, value in pairs( values ) do
-					if (valuesin[name] == 0) then
-						values[name] = 0
-					else
-						values[name] = (value / valuesin[name])
-					end
-				end
-
-				values.temperature = self:GetTemperature( ent, values.lowtemperature, values.hightemperature )
-
-				if (values.gravity <= 0) then
-					values.gravity = 0.0001
-				end
-
-				if (ent:WaterLevel() > 2) then
-					values.oxygen = 0
-					values.atmosphere = -1
-				end
-			end
-
-			ent.EnvironmentValues = values
-			ent:SetGravity( values.gravity )
-
-			local phys = ent:GetPhysicsObject()
-
-			if (phys and phys:IsValid()) then --need to have physics
-				phys:Wake()
-				phys:EnableGravity( values.gravity > 0.01 )
-				phys:EnableDrag( values.gravity > 0.01 )
-			end
-
-			if (ent:IsPlayer()) then
-				data.Send("SetEnvironment", values.oxygen, values.gravity, values.temperature, values.atmosphere, pname, ent )
-			end
+		for _, ent in pairs( self:GetEntities() ) do
+			self:EnvironmentUpdate( ent )
 		end
 	end
+]]
+-- META MODS
+ENVIRONMENTS.entity = {}
 
-	function ENVIRONMENTS:EntityTakeDamage( ent, inflictor, attacker, amount, dmginfo )
-		if (ent:GetClass() == "sb_planet") then return false end
-		if (ent:GetClass() == "base_sb_environment") then return false end
-
-		if (SB:ConfigInt("sb_spawndamage") == 1) then
-			for _, ent in pairs( ent:GetEnvironments() ) do
-				if (ent.spawnpoint) then return false end
-			end
-		end
-	end
-
-	function ENVIRONMENTS:PlayerShouldTakeDamage( ply, attacker )
-		if (SB:ConfigInt("sb_spawndamage") == 1 && ply ~= attacker) then
-			for _, ent in pairs(  ply:GetEnvironments() ) do
-				if (IsValid(ent) and ent.spawnpoint) then return false end
-			end
-		end
-	end
-
-	function ENVIRONMENTS:AddPlanet( data )
-		local ent = ents.Create("sb_planet")
-
-		table.Merge( ent:GetTable(), data )
-		ent:SetEnvironment( data )
-
-		ent:SetPos( data.position )
-		ent:Spawn()
-		ent:Activate()
-		ent:SetName( data.name )
-
-		MsgN("Add Planet ", ent)
-
-		if (data.star) then
-			table.insert( self.Stars, ent ) --add to stars
-		else
-			table.insert( self.Planets, ent ) --add to planets
-		end
-	end
-
-	function ENVIRONMENTS:InitPostEntity( )
-		timer.Simple(1, function()
-			--make sure our stuff gets registered
-			if (!ents.CreateOld) then ents.CreateOld = ents.Create end
-			function ents.Create( ... )
-				local ent = ents.CreateOld( ... )
-				if (ent and ent:GetClass() ~= "sb_planet") then OnEntitySpawn( ent ) end
-				return ent
-			end
-		end)
-
-		ENVIRONMENTS.Planets = {}
-		ENVIRONMENTS.Stars = {}
-
-		for _, ent in pairs(ents.FindByClass("sb_planet")) do
-			ent:Remove()
-		end
-
-		SB:print("----------------------------------------")
-		SB:print("-- Looking for environments:")
-
-		local Blooms = {}
-		local Colors = {}
-
-		local function Extract_Bit(bit, field) --used to get SB2 planet flags
-			if not bit or not field then return false end
-			local retval = 0
-			if ((field <= 7) and (bit <= 4)) then
-				if (field >= 4) then
-					field = field - 4
-					if (bit == 4) then return true end
-				end
-				if (field >= 2) then
-					field = field - 2
-					if (bit == 2) then return true end
-				end
-				if (field >= 1) then
-					field = field - 1
-					if (bit == 1) then return true end
-				end
-			end
-			return false
-		end
-
-		local function Extract_SBPlanetName( value, planet )
-			local name = string.Replace(value, "bloom_", "")
-			name = string.Replace(value, "color_", "")
-
-			if (name ~= "") then
-				name = string.upper(string.Left(name, 1)) .. string.Right(name, string.len(name)-1)
-
-				if (string.len(name) > 1) then planet.name = name end
-			end
-		end
-
-		for _, ent in pairs( ents.FindByClass( "logic_case" ) ) do
-			--get values
-			local tab = ent:GetKeyValues()
-			local Type = tab.Case01
-
-			if Type == "planet_color" then
-				local color = {}
-				color.id = tab.Case16
-				color.addcol = Vector( tab.Case02 )
-				color.mulcol = Vector( tab.Case03 )
-				color.brightness = tonumber( tab.Case04 )
-				color.contrast = tonumber( tab.Case05 )
-				color.color = tonumber( tab.Case06 )
-
-				Colors[color.id] = color
-
-				SB:print("-- Color Found " .. color.id)
-
-			elseif Type == "planet_bloom" then
-				local bloom = {}
-				bloom.id = tab.Case16
-				bloom.color = Vector( tab.Case02 )
-				bloom.x = tonumber( string.Explode( " ", tab.Case03 )[1] )
-				bloom.y = tonumber( string.Explode( " ", tab.Case03 )[2] )
-				bloom.passes = tonumber( tab.Case04 )
-				bloom.darken = tonumber( tab.Case05 )
-				bloom.multiply = tonumber( tab.Case06 )
-				bloom.colormul = tonumber( tab.Case07 )
-
-				Blooms[bloom.id] = bloom
-
-				SB:print("-- Bloom Found" .. bloom.id)
-			end
-		end
-
-		for _, ent in pairs( ents.FindByClass( "logic_case" ) ) do
-			local tab = ent:GetKeyValues()
-			local Type = tab.Case01
-			local planet = {}
-
-			if Type == "env_rectangle" then
-				SB:print("--     Spacebuild Rectangle Found (Skipping)")
-			elseif Type == "cube" then
-				SB:print("--     Spacebuild Cube Found (Skipping)")
-			elseif Type == "planet" then --sb2 planet
-				local flags = tonumber(tab.Case16)
-
-				local planet = {}
-				planet.radius = tonumber(tab.Case02)
-				planet.gravity = tonumber(tab.Case03)
-				planet.atmosphere = tonumber(tab.Case04)
-				planet.lowtemperature = tonumber(tab.Case05)
-				planet.hightemperature = (tonumber(tab.Case06) || planet.lowtemperature)
-				planet.colorid = tostring(tab.Case07)
-				planet.color = Colors[planet.colorid]
-				planet.bloomid = tostring(tab.Case08)
-				planet.bloom = Blooms[planet.bloomid]
-				planet.name = "Planet " .. #self.Planets + 1
-				planet.position = ent:GetPos()
-				planet.spawnpoint = self:IsSpawnPlanet(planet)
-				planet.habitat = Extract_Bit(1, flags)
-				planet.unstable = Extract_Bit(2, flags)
-				planet.sunburn = Extract_Bit(3, flags)
-
-				--sometimes SB2 planets use bloom ids that are the planet names. lets try to get it
-				Extract_SBPlanetName( planet.bloomid, planet )
-				Extract_SBPlanetName( planet.colorid, planet )
-
-				if (planet.habitat) then
-					planet.oxygen = 100
-				else
-					planet.oxygen = 0
-				end
-
-				planet.pressure = 1
-
-				self:AddPlanet( planet )
-
-				SB:print("-- Spacebuild2 Planet Found " .. planet.name)
-			elseif Type == "planet2" then --sb3 planet
-				local planet = {}
-				planet.radius = tonumber(tab.Case02) --Get Radius
-				planet.gravity = tonumber(tab.Case03) --Get Gravity
-				planet.atmosphere = tonumber(tab.Case04)
-				planet.pressure = tonumber(tab.Case05)
-				planet.lowtemperature = tonumber(tab.Case06)
-				planet.hightemperature = tonumber(tab.Case07) || planet.lowtemperature
-				planet.oxygen = tonumber(tab.Case09)
-				planet.name = tostring(tab.Case13) || ("Planet " .. #self.Planets + 1) --Get Name
-				planet.color = Colors[tostring(tab.Case15)]
-				planet.bloom = Blooms[tostring(tab.Case16)]
-				planet.position = ent:GetPos()
-				planet.spawnpoint = self:IsSpawnPlanet(planet)
-
-				self:AddPlanet( planet )
-
-				SB:print("-- Spacebuild3 Planet Found " .. planet.name)
-			elseif Type == "star" then
-				SB:print("--- star")
-				local star = {}
-				star.radius = tonumber(tab.Case02)
-				star.position = ent:GetPos()
-				star.star = true
-
-				self:AddPlanet( star )
-
-				SB:print("-- Spacebuild2 Star Found " .. star.name)
-			elseif Type == "star2" then
-				local star = {}
-				star.radius = tonumber(tab.Case02) --Get Radius
-				star.gravity = tonumber(tab.Case03) --Get Gravity
-				star.name = tostring(tab.Case06 || "Star")
-				star.position = ent:GetPos()
-				star.star = true
-
-				self:AddPlanet( star )
-
-				SB:print("-- Spacebuild3 Star Found " .. star.name)
-			end
-		end
-
-		if (table.Count(self.Stars) == 0) then
-			local star = {}
-			star.radius = 1
-			star.gravity = 0
-			star.name = "Star"
-			star.star = true
-			star.position = Vector(0,0,13000)
-
-			self:AddPlanet( star )
-
-			SB:print("-- Star Manually Added")
-		end
-
-		self.Spacebuild = #ents.FindByClass("sb_planet") > 0
-
-		SB:print("----------------------------------------")
-
-		if (!self.Spacebuild) then
-			SB:RemoveClass( self )
-
-			SB:print("----------------------------------------")
-			SB:print("ERROR: Not a Spacebuild map. Removing Environments.")
-			SB:print("----------------------------------------")
-		end
-	end
-
-	ENVIRONMENTS.OnReloaded = ENVIRONMENTS.InitPostEntity
-
-	concommand.Add("sb_environments_reload", function()
-		ENVIRONMENTS:InitPostEntity()
-	end)
-
-	function ENVIRONMENTS:PlayerNoClip( ply )
-		if (ply:IsAdmin()) then
-			return true
-		else
-			return self:OnPlanet( ply )
-		end
-	end
-
-	local function GetPlanetsDetails( ply, cmd, args )
-		local environments  = ply:GetEnvironments()
-
-		for _, ent in pairs(environments) do
-			if (!IsValid(ent)) then continue end
-
-			local onplanet = ply:GetPos():Distance(ent:GetPos()) < ent:GetRadius()
-
-			MsgN("----------------\n", ent)
-			MsgN("OnEnvironment: ", onplanet)
-			PrintTable(ent:GetEnvironment(), 1)
-			MsgN("--- Entities")
-			PrintTable(ent.Entities, 3)
-			MsgN("--- Watch")
-			PrintTable(ent.Watch, 3)
-			MsgN("----------------")
-		end
-	end
-	concommand.Add("sb_environments_details", GetPlanetsDetails)
-
-	SB:print("Dev command: sb_environments_details")
-
-	--[[
-		META MODS
-	]]
-	local meta = FindMetaTable( "Entity" )
-
-	meta.Environments = {}
-
-	function meta:AddEnvironment( ent )
-		self.Environments[ent:EntIndex()] = ent
-	end
-
-	function meta:RemoveEnvironment( ent )
-		self.Environments[ent:EntIndex()] = nil
-	end
-
-	function meta:GetEnvironments()
-		return self.Environments
-	end
+function ENVIRONMENTS.entity:SetPlanet( planet )
+	self.EnvironmentValues = self.EnvironmentValues or {}
+	self.EnvironmentValues.planet = planet
 end
 
---Returns the planet entity if the position is within a planet
-function ENVIRONMENTS:OnPlanet( pos )
-	if (!pos) then return end
-	if type(pos) == "Entity" or type(pos) == "Player" then pos = pos:GetPos() end
-
-	for _, ent in pairs( ents.FindByClass("sb_planet") ) do
-		if (ent.GetRadius and ent:GetPos():Distance(pos) < ent:GetRadius()) then
-			return ent
-		end
-	end
+function ENVIRONMENTS.entity:GetPlanet()
+	self.EnvironmentValues = self.EnvironmentValues or {}
+	return self.EnvironmentValues.planet
 end
 
-local meta = FindMetaTable( "Entity" )
-
-function meta:GetEnvironmentData()
-	return self.EnvironmentValues or {gravity = 1, oxygen = 100, temperature = 288, atmosphere = 1}
+--returns the global list of all environments (planets, entities, etc)
+function ENVIRONMENTS.entity:GetEnvironments()
+	return self.Environments or {}
 end
 
-function meta:GetPlanet()
-	return ENVIRONMENTS:OnPlanet( self:GetPos() )
+function ENVIRONMENTS.entity:GetEnvironmentData()
+	return self.EnvironmentValues or ENVIRONMENTS:GetSpaceEnvironment()
 end
 
-function meta:IsOnPlanet()
-	return IsValid(ENVIRONMENTS:OnPlanet( self:GetPos() ))
+function ENVIRONMENTS.entity:SetEnvironmentData( data )
+	self.EnvironmentValues = data or ENVIRONMENTS:GetSpaceEnvironment()
 end
 
-function meta:IsOnSpawnPlanet()
-	return IsValid(ENVIRONMENTS:OnPlanet( self:GetPlanet() ))
+function ENVIRONMENTS.entity:GetPressure()
+	return self:GetEnvironmentData().pressure or 0
 end
 
-function meta:GetOxygen()
-	return self:GetEnvironmentData().oxygen
+function ENVIRONMENTS.entity:GetOxygen()
+	return self:GetEnvironmentData().oxygen or 0
 end
 
-function meta:GetTemperature()
-	return self:GetEnvironmentData().temperature
+function ENVIRONMENTS.entity:GetAtmosphere()
+	return self:GetEnvironmentData().atmosphere or 0
 end
 
-SB:Register( ENVIRONMENTS )
+function ENVIRONMENTS.entity:GetTemperature()
+	return self:GetEnvironmentData().temperature or 0
+end

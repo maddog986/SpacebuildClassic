@@ -9,6 +9,7 @@ RS:AddDevice({
 	startsound = "vehicles/Crane/crane_extend_loop1.wav",
 	stopsound = "vehicles/Crane/crane_extend_stop.wav",
 	model = "models/props_c17/FurnitureBoiler001a.mdl",	--boiler
+	requires_name = {"Energy","Water"},
 	resources = {
 		Hydrogen = function(self)
 			return GENERATE(self) / 6

@@ -37,19 +37,19 @@ function ENT:Draw( )
 --[[
 	--Shield Sprite
 	render.SetMaterial(Sprite1)
-	render.DrawSprite(self.Entity:GetPos(), 500, 500, Color(125, 125, 125, 40))
+	render.DrawSprite(self:GetPos(), 500, 500, Color(125, 125, 125, 40))
 	render.SetMaterial(Sprite2)
-	render.DrawSprite(self.Entity:GetPos(), 500, 500, Color(128, 255, 255, 255))
+	render.DrawSprite(self:GetPos(), 500, 500, Color(128, 255, 255, 255))
 ]]
 	--show title if there is one
 	if self.title && self.title != "" && RS.AddWorldTip then
 		--if player within distance show title
-		if ( LocalPlayer():GetEyeTrace().Entity == self.Entity && EyePos():Distance( self.Entity:GetPos() ) < 300 ) then
+		if ( LocalPlayer():GetEyeTrace().Entity == self && EyePos():Distance( self:GetPos() ) < 300 ) then
 			RS.AddWorldTip( self )	--add the title
 		end
 	end
 
-	self.Entity:DrawModel()	//Draw the model
+	self:DrawModel()	//Draw the model
 end
 
 --[[

@@ -3,9 +3,11 @@
 	Author: MadDog (steam id md-maddog)
 
 	TODO:
-		- "Gravity Boots". Gives the planet some gravity in space when above props.
+		- add some kind of space thruster to suit
+			- energy that regenerates over long period
 ]]
 local SUIT = {}
+
 SUIT.Name = "Suit"
 SUIT.Author = "MadDog"
 SUIT.Version = 1
@@ -23,37 +25,51 @@ if SERVER then
 
 	function SUIT:PlayerSpawn( ply )
 		ply:SetSuit(100)
+		ply.alive = true
+	end
+
+	function SUIT:PlayerDeath( ply, inflictor, attacker )
+		ply.alive = false
 	end
 
 	function SUIT:Think()
-		self.NextThink = CurTime() + 0.5
+		self.NextThink = CurTime() + 1
 
-		if (!SB:GetClass("Environments")) then return end
-		--if true then return end
+		if (!GAMEMODE:GetClass("Environments")) then return end
 
 		for _, ply in pairs( player.GetAll() ) do
-			if (!IsValid(ply) or !ply:Alive()) then continue end
+			if (!IsValid(ply)) then continue end
 
-			ply:SetNWInt("Health", ply:Health())
+			if ((ply.dead or 0) > CurTime()) then continue end
 
-			local values = ply:GetEnvironmentData()
-
-			if (!values) then continue end
-
-			if (!values.oxygen or values.oxygen < 5) then
-				ply:TakeDamage(math.random(1, 5), ply, ply)
-				--MsgN("no oxygen")
+			if (!ply:Alive() or !ply.alive) then
+				ply.dead = CurTime() + 2
+				continue
 			end
 
-			if (!values.temperature or values.temperature > 321 or values.temperature < 260) then --temps way out of control
+			--if (ply.dead and ply.dead > CurTime()) then continue end --give our player some time to spawn before dealing damage
+
+			--ply:SetNWInt("Health", ply:Health()) --todo: why did i add this here? cant remember if its needed. we dont want to set this every frame though...
+
+			if (ply:GetOxygen() < 5) then
 				ply:TakeDamage(math.random(1, 5), ply, ply)
-				--MsgN("no temperature: ", temperature)
 			end
 
-			if (!values.atmosphere or values.atmosphere >= 3) then --crushing pressure
+			if (ply:GetTemperature() > 321 or ply:GetTemperature() < 260) then --temps way out of control
 				ply:TakeDamage(math.random(1, 5), ply, ply)
-				--MsgN("no atmosphere")
 			end
+
+			if (ply:GetAtmosphere() >= 3 or ply:GetAtmosphere() == 0) then --crushing atmosphere, or nothing at all
+				ply:TakeDamage(math.random(1, 5), ply, ply)
+			end
+
+			--todo: add pressure crush damage
+			--atmosphere charge
+			--	0 = None
+			--	1 = Normal
+			--	2 = Water
+		 	--	3 = Dense
+			--	4 = Deadly
 		end
 	end
 end
@@ -120,9 +136,6 @@ else
 	local lastsuit = ""
 	local lastsuittime = 0
 
-	local sbsuittimeout = CreateClientConVar( "mdsb_sbsuittimeout", 20, true, false )
-	local sbsuitposition = CreateClientConVar( "mdsb_sbsuitposition", "Left Top", true, false )
-
 	local disabledhuds = {"CHudHealth", "CHudBattery"}
 
 	function SUIT:HUDShouldDraw( name ) --disable stock huds
@@ -165,20 +178,21 @@ else
 	end
 
 	function SUIT:HUDPaint()
+		local suittimeout = OPTIONS:Get( "suittimeout", 30 )
+		local suitposition = OPTIONS:Get( "suitposition", "Left Top" )
+
 		local percent = LocalPlayer():Suit() / LocalPlayer():GetMaxSuit() * 100
-		local s = smoothit("suit", percent)
-		local h = smoothit("health", LocalPlayer():Health())
+		local s = GAMEMODE:Tween("suit", percent)
+		local h = GAMEMODE:Tween("health", LocalPlayer():Health())
 
 		local percent2 = 0
 
 		if (LocalPlayer():GetMaxSuitArmor() > 0) then percent2 = LocalPlayer():SuitArmor() / LocalPlayer():GetMaxSuitArmor() * 100 end
 
-		local s2 = smoothit("suitarmor", percent2)
+		local s2 = GAMEMODE:Tween("suitarmor", percent2)
 
-		local suittimeout = sbsuittimeout:GetInt()
-
-		if ((s .. s2 .. h .. sbsuitposition:GetString()) != lastsuit) then
-			lastsuit = (s .. s2 .. h .. sbsuitposition:GetString())
+		if ((s .. s2 .. h .. suitposition) != lastsuit) then
+			lastsuit = (s .. s2 .. h .. suitposition)
 			lastsuittime = CurTime() + suittimeout
 		end
 
@@ -205,10 +219,10 @@ else
 		end
 
 		--make suit status hud
-		SB:MakeHud({
+		GAMEMODE:MakeHud({
 			name = "SuitHud",
 			minwidth = 160,
-			position = sbsuitposition:GetString(),
+			position = suitposition,
 			enabled = ((LocalPlayer():Alive() and lastsuittime > CurTime()) or suittimeout == 0),
 			rows = rows
 		})
@@ -216,4 +230,4 @@ else
 
 end
 
-SB:Register( SUIT )
+GM:Register( SUIT )

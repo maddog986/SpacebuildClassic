@@ -2,7 +2,12 @@
 RS:AddDevice({
 	name = "Water Pump",
 	desc = "Pumps water. Must be at least 2/3 under water to work.",
-	model = {"models/props_wasteland/buoy01.mdl", "models/props_2fort/waterpump001.mdl"},
+	model = {
+		"models/water_pump.mdl",
+		"models/props_wasteland/buoy01.mdl",
+		"models/props_2fort/waterpump001.mdl"
+	},
+	requires_name = {"Energy","Atmosphere"},
 	resources = {
 		Water = function(self)
 			return GENERATE(self) * 2

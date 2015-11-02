@@ -19,7 +19,7 @@ RS:AddDevice({
 
 			DoMining(self)
 
-			self.Entity:NextThink(CurTime() + 1)
+			self:NextThink(CurTime() + 1)
 			return true
 		end
 	}
@@ -30,7 +30,7 @@ if CLIENT then return end
 function DoMining(self)
 	if (!self:IsActive()) then return end
 
-	local tr = util.QuickTrace( self.Entity:GetPos(), self.Entity:GetForward() * 500, { self.Entity } )
+	local tr = util.QuickTrace( self:GetPos(), self:GetForward() * 500, { self } )
 
 	local asteroid = tr.Entity
 
@@ -77,6 +77,6 @@ function DoMining(self)
 
 	local effectdata = EffectData()
 	effectdata:SetOrigin( tr.HitPos )
-	effectdata:SetStart( self.Entity:GetPos()) --move beam start to front of dish
+	effectdata:SetStart( self:GetPos()) --move beam start to front of dish
 	util.Effect( "ScanBeam", effectdata )
 end

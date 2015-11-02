@@ -21,7 +21,7 @@ RS:AddDevice({
 
 			DoLight( self )
 
-			self.Entity:NextThink(CurTime() + 1)
+			self:NextThink(CurTime() + 1)
 			return true
 		end
 	}
@@ -31,11 +31,11 @@ function DoLight( self )
 
 
 	if self:IsActive() and not self.light then
-		local angForward = self.Entity:GetAngles() + Angle( 0, 0, 0 )
+		local angForward = self:GetAngles() + Angle( 0, 0, 0 )
 
 		self.light = ents.Create( "env_projectedtexture" )
-		self.light:SetParent( self.Entity )
-		self.light:SetLocalPos( Vector( 0, 0, 0 ) + self.Entity:GetUp() * 10 )
+		self.light:SetParent( self )
+		self.light:SetLocalPos( Vector( 0, 0, 0 ) + self:GetUp() * 10 )
 		self.light:SetLocalAngles( Angle(0,0,0) )
 		self.light:SetKeyValue( "enableshadows", 1 )
 		self.light:SetKeyValue( "farz", 2048 )
