@@ -1,1 +1,0 @@
---[[	Author: MadDog (steam id md-maddog)]]GM:RegisterFunc( "GetFallDamage", function( ply, flFallSpeed )	local gravity = SETTINGS:Get( "gravity", 600 )	return (flFallSpeed-580) * SETTINGS:Get( "falldamage", 100 ) * (gravity)/600end )

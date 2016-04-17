@@ -21,7 +21,6 @@ function ENT:Initialize()
 	self:SetMoveType( MOVETYPE_VPHYSICS )
 	self:SetSolid( SOLID_VPHYSICS )
 
-
 	local phys = self:GetPhysicsObject()
 
 	if (!phys:IsValid()) then self:Remove(); MsgN("NOT VALID PHYSICS FOR METEOR, REMOVED"); return end

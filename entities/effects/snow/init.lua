@@ -15,7 +15,8 @@ function EFFECT:Emit()
 		local offset = Vector(X,Y,0)
 		local spawnpos = LocalPlayer():GetPos()+Vector(0,0,600)+offset
 
-		if !SB:GetClass( "Environments" ):OnPlanet( spawnpos ) then continue end
+		--TODO: add a planet check to make sure it doesnt rain in space
+		--if !SB:GetClass( "Environments" ):OnPlanet( spawnpos ) then continue end
 
 		local particle = emitter:Add("particle/snow", spawnpos)
 		if (particle) then

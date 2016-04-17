@@ -5,161 +5,66 @@
 
 ]]
 
---speed up vars
-local GM = GM
-local include = include
-local type = type
-local hook = hook
-local unpack = unpack
-local pairs = pairs
-local math = math
-local table = table
-local resource = resource
-local string = string
-
-GM.Name = "Spacebuild Classic"
-GM.Email = "drew@aspinvision.com"
-GM.Author = "MadDog"
-GM.Version = 1
-GM.Website = "http://www.facepunch.com/members/145240-MadDog986"
-GM.IsSandboxDerived = true
-GM.IsSpacebuildDerived = true
-
-print("---------------------------------------------------------------------------------")
-print("-- " .. GM.Name .. " v" .. GM.Version .. " by " .. GM.Author .. " Loading --")
-print("---------------------------------------------------------------------------------")
-
---DEFINE_BASECLASS( "gamemode_sandbox" )
 DeriveGamemode("Sandbox")
 
---internal vars
-GM._s = {}
-GM._stored = {}
-GM._classes = {}
+GM.Name = "Spacebuild Revolution"
+GM.Author = "MadDog986"
+GM.Website = "http://www.facepunch.com/members/145240-MadDog986"
+GM.Version = 1
 
-function GM:AddFolder( path )
+-- debug
+function GM:DebugPrint(...)
+	if CLIENT then return end --disable clientside debug for now
+	if SERVER then color = Color(245, 255, 154, 255) else color = Color(178, 161, 126, 255) end
+
+	MsgC(color, "--- ", ...)
+	MsgC(color, "\n")
+end
+
+--loading message
+GM:DebugPrint("----------------------------------------------------------")
+GM:DebugPrint(GM.Name .. " v" .. GM.Version .. " by " .. GM.Author .. " ----")
+if SERVER then GM:DebugPrint("Loading Serverside") else GM:DebugPrint("Loading Clientside") end
+GM:DebugPrint("----------------------------------------------------------")
+
+--load all core files
+GM:Include( "core/sh_*" )
+
+--adds a folder to download to client
+function GM:ContentFolder( path )
+	local p = string.match(path, "(.*/)")--:gsub( GM.Folder .. "/gamemode/" , "")
 	local files, folders = file.Find( path .. "/*", "GAME" )
 
-	for k, v in pairs( files ) do
-		resource.AddFile( path .. "/" .. v )
+	for _, name in pairs( files ) do
+		resource.AddFile( p .. name )
 	end
 
-	for k, v in pairs( folders ) do
-		self:AddFolder( path .. "/" .. v )
-	end
-end
-
-function GM:AddFiles( path )
-	local p = string.match(path, "(.*/)")--:gsub( GM.Folder .. "/gamemode/" , "")
-
-	for _, fileName in pairs( file.Find( path, "GAME" ) ) do
-		resource.AddFile( p .. fileName )
+	for _, name in pairs( folders ) do
+		self:ContentFolder( path .. "/" .. name )
 	end
 end
 
+--includes files to the script
 function GM:Include( path )
-	local p = string.match(path, "(.*/)")--:gsub( GM.Folder .. "/gamemode/" , "")
+	local p = path:match("(.*/)"):gsub( self.Folder .. "/gamemode/" , "")
 
-	for _, fileName in pairs( file.Find(GM.Folder .. "/gamemode/" .. path, "GAME") ) do
-		if fileName:find("cl_") then
-			if (SERVER) then
+	for _, fileName in SortedPairs( file.Find(self.Folder .. "/gamemode/" .. path, "GAME") ) do
+		self:DebugPrint("file: ", p , fileName)
+
+		if ( fileName:find("sv_") ) then --server only files
+			if SERVER then include( p .. fileName ) end
+		elseif ( fileName:find("cl_") ) then --clientside only files
+			if ( SERVER ) then
 				AddCSLuaFile( p .. fileName )
 			else
 				include( p .. fileName )
 			end
-		elseif fileName:find("sh_") then
-			if (SERVER) then
-				AddCSLuaFile( p .. fileName )
-			end
-
-			include( p .. fileName )
-		elseif SERVER and fileName:find("sv_") then
-			include( p .. fileName )
+		else --all other shared files
+			IncludeCS( p .. fileName )
 		end
 	end
-end
-
-function GM:Tween( name, target )
-	self._s[name] = (self._s[name] or target or 0)
-	local a = (target - self._s[name]) * 0.1
-	self._s[name] = self._s[name] + a
-	return math.Round(self._s[name])
-end
-
-function GM:RegisterFunc( name, class, func )
-	self._stored[name] = {class = class, func = func}
-end
-
-function GM:Register( class )
-	class.Name = class.Name or "Unknown-" .. SysTime()
-	self._classes[class.Name] = class
-
-	if (class.player) then
-		table.Merge( FindMetaTable( "Player" ), class.player)
-	end
-
-	if (class.entity) then
-		table.Merge( FindMetaTable( "Entity" ), class.entity)
-	end
-end
-
-function GM:RemoveClass( class )
-	if (!class.Name) then return end
-
-	if (self._classes[class.Name].Disable) then
-		self._classes[class.Name]:Disable()
-	end
-
-	self._classes[class.Name] = nil
-end
-
-function GM:GetClass( name )
-	return self._classes[name]
-end
-
-if ( !hook.SBCall ) then hook.SBCall = hook.Call; end
-
--- A function to call a hook.
-function hook.Call( name, GM, ... )
-	local arguments = {...}
-
-	if (!GM) then GM = GAMEMODE end
-
-	--function hooks
-	if (GM._stored[name] and type( GM._stored[name].func ) == "function") then
-		local value = GM._stored[name].func( GM._stored[name].class, unpack(arguments) )
-		if (value != nil) then return value end
-	end
-
-	--class hooks
-	for _, class in pairs(GM._classes) do
-		if (class[name] and type(class[name]) == "function") then
-			if (name == "Think" and class.NextThink and class.NextThink > CurTime()) then continue end
-
-			local value = class[name]( class, unpack(arguments) )
-			if (value != nil) then return value end
-		end
-	end
-
-	--gamemode hooks...
-	if (GM[name] and type( GM[name] ) == "function") then
-		if ( name == "Think" and GM.NextThink and GM.NextThink > CurTime() ) then return end
-		local value = GM[name]( GM, unpack(arguments) )
-		if (value != nil) then return value end
-	end
-
-	if (value == nil) then
-		return hook.SBCall( name, GM, unpack(arguments) )
-	else
-		return value
-	end
-end
-
-function IsValid( object )
-	if (!object or !object.IsValid) then return false end
-	return object:IsValid()
 end
 
 --load the modules
-GM:Include( "modules/cl_*" )
-GM:Include( "modules/sh_*" )
+GM:Include( "plugins/sh_*" )
+GM:Include( "drive/*" )

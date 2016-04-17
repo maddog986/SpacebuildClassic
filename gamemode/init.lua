@@ -5,36 +5,39 @@
 
 ]]
 
-DEFINE_BASECLASS( "gamemode_sandbox" )
-
--- Enable realistic fall damage for this gamemode.
-game.ConsoleCommand("mp_falldamage 1\n")
-game.ConsoleCommand("sbox_godmode 1\n") --TODO: remove before release
-game.ConsoleCommand("sv_cheats 1\n") --TODO: remove before release
-
 AddCSLuaFile("cl_init.lua")
 AddCSLuaFile("shared.lua")
 
 include("shared.lua")
 
---include the extra stuff
-GM:AddFiles( "content/models/*.mdl" )
-GM:AddFiles( "content/materials/models/*.vmt" )
-GM:AddFiles( "content/materials/spacebuild/*.vmt" )
-GM:AddFiles( "content/materials/effects/*.vmt" )
-GM:AddFiles( "content/resource/fonts/*" )
-GM:AddFiles( "sound/spacebuild/*" )
+DEFINE_BASECLASS( "gamemode_sandbox" )
 
-GM:Include( "modules/sv_*" )
+--Up the PhysSpeed
+local PhysSpeed = {}
+PhysSpeed.MaxVelocity = 12000
+physenv.SetPerformanceSettings(PhysSpeed)
 
---Removing the cleanup command since it removes things it shouldnt
-concommand.Remove( "gmod_admin_cleanup" )
-concommand.Add( "gmod_admin_cleanup", function( ply, cmd, args )
-	game.CleanUpMap()
-end)
+--sb_gooniverse map fix
+function GM:InitPostEntity()
+	if ( game.GetMap() ~= "sb_gooniverse" ) then return end
 
-if (!game.CleanUpMapOld) then game.CleanUpMapOld = game.CleanUpMap end
-
-function game.CleanUpMap() --reventing the planets from being cleaned up
-	game.CleanUpMapOld( false, {"sb_planets","logic_case"} )
+	for _, ent in pairs( ents.FindInSphere( Vector(10000, -2610, 10458), 1300 ) ) do
+		if ( !table.HasValue({"func_door","prop_dynamic","func_physbox_multiplayer","path_track","func_button","func_tracktrain"}, ent:GetClass()) ) then continue end
+		SafeRemoveEntity(ent)
+	end
 end
+
+--include the extra stuff
+--GM:AddFiles( "content/models/*.mdl" )
+--GM:AddFiles( "content/materials/models/*.vmt" )
+--GM:AddFiles( "content/materials/spacebuild/*.vmt" )
+--GM:AddFiles( "content/materials/effects/*.vmt" )
+--GM:AddFiles( "content/resource/fonts/*" )
+--GM:AddFiles( "sound/spacebuild/*" )
+
+GM:Include( "core/sv_*" )
+GM:Include( "plugins/sv_*" )
+
+GM:DebugPrint("----------------------------------------------------------")
+GM:DebugPrint("Loading Completed ----")
+GM:DebugPrint("----------------------------------------------------------")

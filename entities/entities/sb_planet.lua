@@ -1,23 +1,23 @@
 --[[
 	Author: MadDog (steam id md-maddog)
 ]]
+
 AddCSLuaFile()
 
-DEFINE_BASECLASS( "base_environment" )
+DEFINE_BASECLASS( "sb_brush_environment" )
 
 ENT.PrintName = "SB Planet"
 ENT.Author	= "MadDog"
 ENT.Spawnable = false
 ENT.AdminSpawnable = false
 
-function ENT:SetupDataTables()
-	self:NetworkVar( "Bool", 0, "Raining" )
-	self:NetworkVar( "Bool", 1, "Snowing" )
+ENT.RenderGroup = RENDERGROUP_TRANSLUCENT
 
-	self:NetworkVar( "Int", 0, "Radius" )
+function ENT:SetupDataTables()
+	self:NetworkVar( "Int", 0, "Size" )
 
 	if SERVER then
-		self:NetworkVarNotify( "Radius", self.RadiusChanged )
+		self:NetworkVarNotify( "Size", self.SizeChanged )
 	end
 
 	self:NetworkVar( "String", 0, "EnvironmentName" )
@@ -39,27 +39,29 @@ function ENT:SetupDataTables()
 	self:NetworkVar( "Float", 9, "BloomColorMul" )
 end
 
-function ENT:GetGravityRadius() return self:GetRadius() * 1.5 end
+function ENT:GetGravitySize() return self:GetSize() * 1.5 end
 function ENT:IsPlanet() return true end
 
 if (CLIENT) then return end
 
-function ENT:RadiusChanged( name, old, value )
-	if (name ~= "Radius") then return end
+function ENT:SizeChanged( name, old, size )
+	if (name ~= "Size") then return end
 
-	self:PhysicsInitSphere( value )
-	self:SetCollisionBounds( -Vector(value, value, value), Vector(value, value, value) )
+	BaseClass.SetSize( self, size )
 end
 
 function ENT:SetEnvironment( data )
 	BaseClass.SetEnvironment( self, data )
 
-	self:SetEnvironmentName( data.name or "device" )
+	self.default_environment = self.default_environment or data
+
+	self:SetEnvironmentName( data.name or "Unknown" )
 
 	--lets "fix" some planets to increase gameplay
 	if (self.environment.name == "Endgame") then
-		self.environment.unstable = 1
-		self.environment.atmosphere = 0
+		self.environment.unstable = true
+		self.environment.atmosphere = 2
+		self.environment.pressure = 2 --dense
 	elseif (self.environment.name == "Cerebus") then
 		self.environment.trees = 1
 	elseif (self.environment.name == "Kobol") then
@@ -67,11 +69,6 @@ function ENT:SetEnvironment( data )
 		self.environment.hightemperature = 200
 		self.environment.gravity = 0.8
 		self.environment.atmosphere = 2
-
-		self:SetSnowing( (self.environment.hightemperature < 273.150) )
-		self:SetRaining( (self.environment.hightemperature > 273.150) )
-	elseif (self.environment.name == "Coruscant") then
-		self:SetRaining( true )
 	end
 
 	--save custom color
@@ -95,27 +92,42 @@ function ENT:SetEnvironment( data )
 	end
 end
 
-function ENT:UpdateTransmitState()
-	return TRANSMIT_ALWAYS
+function ENT:IsSpawn()
+	return self.environment.spawnPlanet
 end
 
+--TODO: find out why the planets randomly move... seemed tied to entities being removed or something
+--this is really hacky and i hate it. something makes the planet move at some point, cant figure out what so this is here to stop that shit
+function ENT:Think()
+	if (self.default_environment.position) then self:SetPos( self.default_environment.position ) end
+	self:NextThink( CurTime() + 1 )
+	return true
+end
+
+function ENT:UpdateTransmitState() return TRANSMIT_ALWAYS end
+function ENT:GetDefaultEnvironment() return self.default_environment or {} end
 
 
 
+function ENT:IsStable()
+	return !self.environment.unstable
+end
 
-
+function ENT:IsTerraFormed() --TODO: finish
+	return false
+end
 
 --TODO: finish terraform stuff
 function ENT:TerraForm( name, amount )
 	if (!self.default_environment[name]) then return end --planet doesnt have this type for some reason so exit
 
-	self.environment[name] = math.Approach( self.environment[name], self.livable_environment[name], amount )
+	self.environment[name] = math.Approach( self.environment[name], ENVIRONMENTS:GetDefaultEnvironment()[name], amount )
 end
 
 function ENT:TerraFormFinished()
 	self.TerraFormFinished = true
 
-	for _, ent in pairs(ents.FindInSphere( self:GetPos(), self:GetRadius())) do
+	for _, ent in pairs(ents.FindInSphere( self:GetPos(), self:GetSize())) do
 		if (ent:GetClass() == "func_dustcloud" or ent:GetClass() == "env_smokestack") then
 			ent:Input("TurnOff")
 		end
@@ -127,7 +139,7 @@ function ENT:TerraFormFullReset()
 
 	self.environment = table.Copy(self.default_environment)
 
-	for _, ent in pairs(ents.FindInSphere( self:GetPos(), self:GetRadius())) do
+	for _, ent in pairs(ents.FindInSphere( self:GetPos(), self:GetSize())) do
 		if (ent:GetClass() == "func_dustcloud" or ent:GetClass() == "env_smokestack") then
 			ent:Fire("TurnOn")
 		end

@@ -40,12 +40,6 @@ ENT.Materials[MAT_SAND] = "Sand"
 ENT.Materials[MAT_GRASS] = "Dirt"
 ENT.Materials[MAT_SNOW] = "Dirt"
 
---clientside
-if CLIENT then
-	--function ENT:Draw() end
-	--function ENT:DrawModel() end
-return end
-
 --shared side
 function ENT:CanTool() return false end
 function ENT:GravGunPunt() return false end
@@ -74,9 +68,9 @@ function ENT:Initialize()
 	self:SetModelScale( self.StartSize )
 
 	timer.Create( "growing" .. self:EntIndex(), 0.01, 0, function()
-		if (!IsValid(self)) then return end
-
-		if (!self.StartTime) then self.StartTime = CurTime() end
+		if ( !IsValid(self) ) then return end
+		
+		self.StartTime = self.StartTime or CurTime()
 
 		self:SetModelScale( math.Clamp(1 * ((CurTime() - self.StartTime) / self.GrowTime), 0, self.EndSize) )
 
@@ -92,7 +86,7 @@ function ENT:FinishGrowing()
 
 	local phys = self:GetPhysicsObject()
 
-	if (phys:IsValid()) then
+	if ( IsValid(phys) ) then
 		phys:EnableMotion( false )
 	end
 end
@@ -110,23 +104,23 @@ end
 ENT.LastReproduce = 0
 
 function ENT:Reproduce()
-	if (self.LastReproduce > CurTime()) then return end --to soon
+	if ( self.LastReproduce > CurTime() ) then return end --to soon
 	self.LastReproduce = CurTime() + math.random(1, 2)
 
 	--color me red, reached max amount of tires, TODO: remove before release
-	if (self.MaxTries < self.Tries) then
+	if ( self.MaxTries < self.Tries ) then
 		self:SetColor(Color(255,0,0,255))
 		return
 	end
 
 	--must mature first to reproduce
-	if (!self:IsDoneGrowing()) then
+	if ( !self:IsDoneGrowing() ) then
 		self:SetColor(Color(0,0,0,255))
 		--MsgN("self:GetModelScale(): ", math.Round(self:GetModelScale(), 2) , "-", self.EndSize)
 	return end
 
 	--only try to reproduce if not already at the max
-	if (self:ReachedPlanetMax()) then return end --currently at planet max
+	if ( self:ReachedPlanetMax() ) then return end --currently at planet max
 
 	self:SetColor(Color(255,255,255,255))
 
@@ -134,7 +128,7 @@ function ENT:Reproduce()
 	local spreedchance = self.SpreedChance
 	local chance = math.random(0,100)
 
-	if (chance > spreedchance) then return end
+	if ( chance > spreedchance ) then return end
 
 	--up to 6 trys to plant a seed
 	for i = 1, 6, 1 do
@@ -186,12 +180,12 @@ function ENT:Plant( pos, angle )
 end
 
 function ENT:ReachedPlanetMax()
-	if (!IsValid(self:GetPlanet())) then return true end
+	if ( !IsValid(self:GetPlanet()) ) then return true end
 
 	local count = 0
 
 	for _, ent in pairs( ents.FindByClass("sb_tree") ) do
-		if (ent:GetPlanet() == self:GetPlanet()) then
+		if ( ent:GetPlanet() == self:GetPlanet() ) then
 			count = count + 1
 		end
 	end
@@ -230,8 +224,6 @@ function ENT:Think()
 
 		self:Reproduce()
 	end
-
-
 
 	self:NextThink( CurTime() + 1 )
 	return true

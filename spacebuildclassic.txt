@@ -1,8 +1,7 @@
 "spacebuildclassic"
 {
 	"base"		"sandbox"
-	"title"		"Spacebuild Classic
-	"author"	"MadDog"
+	"title"		"Spacebuild Classic"
 	"maps"		"^sb_"
 	"menusystem"	"1"
 }
